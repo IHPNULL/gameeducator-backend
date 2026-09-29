@@ -1,0 +1,59 @@
+# Jenkins local deste repositorio: sobe um Jenkins configurado (usuario,
+# plugins, job "gameeducator" ja criado) e um Docker-in-Docker (dind) so para
+# o Jenkins usar, isolado do Docker da sua maquina. Nada aqui e publicado nem
+# roda como servico global: e so um "docker compose up" nesta pasta.
+#
+# Uso (a partir da raiz do repositorio):
+#   docker compose -f jenkins/docker-compose.yml up -d --build
+#   abrir http://127.0.0.1:8090  (usuario/senha: ver jenkins/README.md)
+#   docker compose -f jenkins/docker-compose.yml down       # para
+#   docker compose -f jenkins/docker-compose.yml down -v    # para e apaga tudo (Jenkins + imagens do dind)
+name: gameeducator-jenkins
+
+services:
+  # Docker-in-Docker: e o motor Docker que o Jenkins usa para buildar as
+  # imagens do projeto e rodar a pipeline. Precisa se chamar exatamente
+  # "docker" porque o certificado TLS que ele gera sozinho so e valido para
+  # os nomes "docker" e "localhost" (verificado localmente - ver PROJECT-BRIEF.md).
+  docker:
+    image: docker:29.8.0-dind
+    privileged: true # obrigatorio para Docker-in-Docker; container efemero, sem porta exposta ao host
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - jenkins-docker-certs:/certs/client
+      - dind-storage:/var/lib/docker
+    healthcheck:
+      # confere o proprio endpoint TCP+TLS que o Jenkins vai usar (nao so o socket local)
+      test: ["CMD", "docker", "-H", "tcp://localhost:2376", "--tlsverify",
+             "--tlscacert=/certs/client/ca.pem", "--tlscert=/certs/client/cert.pem", "--tlskey=/certs/client/key.pem",
+             "version"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  jenkins:
+    build:
+      context: ..
+      dockerfile: jenkins/Dockerfile
+    depends_on:
+      docker:
+        condition: service_healthy
+    environment:
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: "1"
+      LOCAL_SOURCE_DIR: /src
+      JENKINS_ADMIN_USER: ${JENKINS_ADMIN_USER:-admin}
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:-admin}
+    ports:
+      - "127.0.0.1:8090:8080" # so a maquina local acessa; nunca 0.0.0.0
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client:ro
+      - ../:/src:ro # repositorio local, so leitura (nao e um repositorio Git - ver PROJECT-BRIEF.md/D3)
+
+volumes:
+  jenkins-data:
+  jenkins-docker-certs:
+  dind-storage: # imagens/containers construidos pela pipeline (backend, frontend, api-tests, ui-tests, postgres...)

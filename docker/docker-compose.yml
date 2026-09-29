@@ -1,0 +1,65 @@
+# IMAGE_TAG: tag da imagem gameeducator-backend. Localmente fica "local".
+# A pipeline do Jenkins define IMAGE_TAG e sobe com "up --no-build", para nunca
+# reconstruir uma imagem diferente da que os testes validaram.
+# Nome de projeto explicito: evita colisao de containers/volumes entre checkouts.
+name: gameeducator-backend
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gameeducator
+      POSTGRES_USER: gameeducator
+      POSTGRES_PASSWORD: gameeducator
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gameeducator -d gameeducator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: gameeducator-backend:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres,dev
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: gameeducator
+      DB_USER: gameeducator
+      DB_PASSWORD: gameeducator
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@gameeducator.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      # Desktop mode: sem tela de login. Use so em ambiente local.
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      PGADMIN_CONFIG_DESKTOP_USER: "'admin@gameeducator.com'"
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+      PGADMIN_REPLACE_SERVERS_ON_STARTUP: 'True'
+      PGPASS_FILE: /pgadmin4/pgpass
+    volumes:
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro
+      - ./pgadmin-pgpass:/pgadmin4/pgpass:ro
+      - pgadmin-data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+volumes:
+  db-data:
+  pgadmin-data:

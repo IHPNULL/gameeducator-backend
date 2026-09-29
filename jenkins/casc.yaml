@@ -1,0 +1,22 @@
+# Configuration as Code do Jenkins local deste repositorio.
+# Referenciado pelo Dockerfile (ENV CASC_JENKINS_CONFIG) a partir de um
+# caminho FORA do volume de dados do Jenkins, para que uma imagem
+# reconstruida sempre aplique a versao atual deste arquivo (o volume
+# "jenkins-data" e persistente entre reinicios, mas este arquivo nao mora
+# nele - ver jenkins/README.md).
+jenkins:
+  systemMessage: "GameEducator - Jenkins local (uso apenas de desenvolvimento, nao exposto fora de 127.0.0.1)"
+  numExecutors: 1
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        # JENKINS_ADMIN_USER/PASSWORD sempre chegam definidas aqui: o docker
+        # compose (jenkins/docker-compose.yml) ja aplica o padrao admin/admin
+        # antes de passar a variavel para este container.
+        - id: "${JENKINS_ADMIN_USER}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false

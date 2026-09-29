@@ -1,0 +1,14 @@
+# Plugins do Jenkins local deste repositorio (instalados na build da imagem,
+# ver jenkins/Dockerfile). Sem versao fixada: o jenkins-plugin-cli resolve a
+# versao mais recente compativel com o Jenkins core usado (jenkins/jenkins:
+# 2.568.3-lts-jdk21, fixado no Dockerfile) no momento da build da imagem.
+# Isso significa que rebuildar a imagem em outro dia pode trazer uma versao
+# de plugin mais nova (mesma pratica do "npm install" sem lockfile de
+# plugins) - ver jenkins/README.md.
+
+workflow-aggregator   # Pipeline (stage, steps, sh, dir, script, when, post, parameters...)
+git                   # suporte a "checkout scm" (usado quando o job vira um job Git de verdade)
+junit                 # step "junit" (publica os relatorios JUnit/Surefire/Cucumber)
+jacoco                # step "jacoco" (publica o relatorio de cobertura do backend)
+timestamper           # opcao "timestamps()" usada no Jenkinsfile
+configuration-as-code # configura o Jenkins (usuario, permissoes) via jenkins/casc.yaml

@@ -1,0 +1,14 @@
+# Override sobre docker/docker-compose.yml: sobe so o backend no profile
+# "automation" (H2 em memoria, dados fixos - ver src/main/java/.../config/AutomationSeedData.java),
+# sem db/pgadmin. Usado pela suite Cucumber de api-tests/, nunca contra dados reais.
+#
+# Uso (raiz do repo):
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.automation.yml up -d backend
+services:
+  backend:
+    environment:
+      SPRING_PROFILES_ACTIVE: automation
+      # Origens do frontend (repo gameeducator-frontend) permitidas a chamar a API,
+      # incluindo o nome de servico "frontend" usado na rede do Compose.
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:4173,http://localhost:8081,http://frontend
+    depends_on: !reset []
