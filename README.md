@@ -27,20 +27,13 @@ Perfis Spring: padrão (H2), `dev` (dados de exemplo), `postgres` (PostgreSQL vi
 docker compose -f docker/docker-compose.yml up --build    # Postgres + backend (:8080) + pgAdmin (:5050)
 ```
 
-## Automação de API (Cucumber-JVM + REST-assured)
+## Automação
 
-```bash
-docker compose -f docker/docker-compose.yml -f docker/docker-compose.automation.yml up -d --build backend
-cd api-tests && ./mvnw test        # -Dautomation.baseUrl=http://outro:porta para outro host
-docker compose -f docker/docker-compose.yml -f docker/docker-compose.automation.yml down -v
-```
-
-Relatório: `api-tests/target/cucumber-report/cucumber-report.html`.
+As suítes Cucumber (API e UI) ficam no repositório [gameeducator-automation](https://github.com/IHPNULL/gameeducator-automation). Este repositório fornece o perfil Spring `automation` (`AutomationSeedData`) que elas usam.
 
 ## CI
 
-`Jenkinsfile` builda a imagem, roda os testes dentro dela, valida a integração com Postgres e roda a suíte
-Cucumber de API. Jenkins local: veja [`jenkins/README.md`](jenkins/README.md).
+`Jenkinsfile` builda a imagem, roda os testes dentro dela, valida a integração com Postgres. Jenkins local: veja [`jenkins/README.md`](jenkins/README.md).
 
 O planejamento ATDD (BDD → TDD RED/GREEN/BLUE) e a rastreabilidade cenário → service → teste estão em
 [`BACKLOG.md`](BACKLOG.md).

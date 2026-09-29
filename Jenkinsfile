@@ -1,6 +1,6 @@
 // Pipeline do backend do GameEducator: builda a imagem, roda os testes DENTRO
-// da imagem, sobe a integracao (Postgres) e a suite Cucumber de API contra o
-// backend real (perfil "automation"). Qualquer falha para a pipeline.
+// da imagem e sobe a integracao (Postgres). A automacao Cucumber fica no repo
+// gameeducator-automation. Qualquer falha para a pipeline.
 // Jenkins local: ver jenkins/README.md.
 pipeline {
     agent any
@@ -81,13 +81,6 @@ pipeline {
             }
         }
 
-        stage('Automacao: imagem api-tests') {
-            steps {
-                // O build ja roda "mvnw test-compile" e falha se o codigo de teste nao compilar.
-                sh "docker build -f docker/api-tests.Dockerfile -t gameeducator-api-tests:${IMAGE_TAG} api-tests"
-            }
-        }
-
         stage('Integracao (Postgres)') {
             steps {
                 sh "docker compose -f docker/docker-compose.yml up -d --no-build db backend"
@@ -109,37 +102,6 @@ pipeline {
                 always {
                     sh 'docker compose -f docker/docker-compose.yml logs backend || true'
                     sh 'docker compose -f docker/docker-compose.yml down -v || true'
-                }
-            }
-        }
-
-        stage('Automacao: Cucumber API') {
-            steps {
-                sh "docker compose -f docker/docker-compose.yml -f docker/docker-compose.automation.yml up -d --no-build backend"
-                sh '''
-                    ok=0
-                    for i in $(seq 1 30); do
-                        if docker compose -f docker/docker-compose.yml -f docker/docker-compose.automation.yml exec -T backend wget -q -O- http://127.0.0.1:8080/v3/api-docs > /dev/null 2>&1; then
-                            ok=1; break
-                        fi
-                        sleep 2
-                    done
-                    if [ "$ok" != "1" ]; then
-                        echo "ERRO: backend (perfil automation) nao respondeu em /v3/api-docs apos 60s" >&2
-                        exit 1
-                    fi
-                '''
-                sh "docker run --name ${COMPOSE_PROJECT_NAME}-api-tests --network ${COMPOSE_PROJECT_NAME}_default gameeducator-api-tests:${IMAGE_TAG}"
-            }
-            post {
-                always {
-                    sh "docker cp ${COMPOSE_PROJECT_NAME}-api-tests:/app/target/cucumber-report api-tests-cucumber-report || true"
-                    sh "docker cp ${COMPOSE_PROJECT_NAME}-api-tests:/app/target/surefire-reports api-tests-surefire-reports || true"
-                    sh "docker rm -f ${COMPOSE_PROJECT_NAME}-api-tests || true"
-                    sh 'docker compose -f docker/docker-compose.yml -f docker/docker-compose.automation.yml logs backend || true'
-                    sh 'docker compose -f docker/docker-compose.yml -f docker/docker-compose.automation.yml down -v || true'
-                    junit testResults: 'api-tests-surefire-reports/*.xml', allowEmptyResults: true
-                    archiveArtifacts artifacts: 'api-tests-cucumber-report/**', allowEmptyArchive: true
                 }
             }
         }
