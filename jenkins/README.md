@@ -11,7 +11,7 @@ containers, e nao publica nada na internet.
 
 ## 1. Subir o Jenkins
 
-A partir da raiz do repositorio (a pasta `Devops-qa-gp6-main`):
+A partir da raiz do repositorio (`gameeducator-backend`):
 
 ```bash
 docker compose -f jenkins/docker-compose.yml up -d --build
@@ -20,7 +20,7 @@ docker compose -f jenkins/docker-compose.yml up -d --build
 Isso builda e sobe duas coisas:
 
 - `docker`: um Docker "de dentro" so para o Jenkins usar (Docker-in-Docker).
-  E onde as imagens do projeto (backend, frontend, api-tests, ui-tests) sao
+  E onde as imagens do projeto (backend e Postgres) sao
   construidas e rodadas. Nao aparece no `docker images` da sua maquina - so
   dentro deste Jenkins.
 - `jenkins`: o Jenkins em si, ja configurado, com o job **gameeducator** ja
@@ -43,21 +43,19 @@ A pipeline faz, nesta ordem, parando no primeiro erro:
 
 1. Pega o codigo (desta pasta local).
 2. Builda a imagem de **teste** do backend e roda `./mvnw verify` dentro
-   dela (os 91 testes + o gate de cobertura do JaCoCo).
+   dela (os testes + o gate de cobertura do JaCoCo).
 3. Builda a imagem **final** do backend (`gameeducator-backend`).
-4. Builda a imagem de **teste** do frontend e roda o Vitest dentro dela.
-5. Builda a imagem **final** do frontend (`gameeducator-frontend`).
-6. Builda as imagens `gameeducator-api-tests` e `gameeducator-ui-tests`.
-7. Sobe backend + frontend + Postgres (as imagens do passo 3 e 5) e confere
-   se o backend responde.
-8. Sobe backend + frontend no perfil de automacao (H2 com dados fixos) e
-   roda as duas suites Cucumber (API e UI) contra elas.
-9. `Publish`: so roda na branch `main` e com um registry configurado -
+4. Sobe backend + Postgres (a imagem do passo 3) e confere se o backend
+   responde.
+5. `Publish`: so roda na branch `main` e com um registry configurado -
    nesta configuracao local, sempre fica pulado (ver "Limitacoes" abaixo).
 
 Se um teste quebrar, o estagio correspondente fica vermelho, os estagios
 seguintes aparecem como "skipped", e o build final fica **FAILURE** - a
 pipeline nao segue em frente com um teste quebrado.
+
+> Frontend e automacao (Cucumber API + UI) tem pipelines proprias nos
+> repositorios `gameeducator-frontend` e `gameeducator-automation`.
 
 ## 3. Ver as imagens geradas
 
@@ -68,12 +66,11 @@ nao no Docker da sua maquina. Para listar:
 docker compose -f jenkins/docker-compose.yml exec docker docker images 'gameeducator-*'
 ```
 
-Nomes: `gameeducator-backend`, `gameeducator-frontend`,
-`gameeducator-api-tests`, `gameeducator-ui-tests`. A tag e o commit do Git
+Nome: `gameeducator-backend`. A tag e o commit do Git
 (12 caracteres) quando existir, ou `local-<numero do build>`.
 
-Quer usar essas imagens fora do Jenkins (por exemplo, para rodar a
-aplicacao)? Builde-as direto na sua maquina, sem passar pelo Jenkins:
+Quer usar essa imagem fora do Jenkins (por exemplo, para rodar a
+aplicacao)? Builde-a direto na sua maquina, sem passar pelo Jenkins:
 
 ```bash
 docker compose -f docker/docker-compose.yml up --build

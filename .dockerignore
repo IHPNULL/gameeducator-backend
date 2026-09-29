@@ -2,5 +2,4 @@
 .idea/
 *.iml
 target/
-api-tests/target/
 jenkins/jenkins_home/

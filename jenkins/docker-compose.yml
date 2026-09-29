@@ -56,4 +56,4 @@ services:
 volumes:
   jenkins-data:
   jenkins-docker-certs:
-  dind-storage: # imagens/containers construidos pela pipeline (backend, frontend, api-tests, ui-tests, postgres...)
+  dind-storage: # imagens/containers construidos pela pipeline (backend, postgres...)
