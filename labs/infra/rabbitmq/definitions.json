@@ -1,0 +1,48 @@
+{
+  "rabbit_version": "4.1.0",
+  "users": [
+    {
+      "name": "gameeducator",
+      "password_hash": "jM/F6W/QTzY8qUvQFM9R0ig2h0avnuHkvri/l6CQel3Oze7x",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    },
+    {
+      "name": "dispositivo",
+      "password_hash": "tL/vYkk8hn1Rjs1GSrQkVEZsbdsXpy03btXeoyvfvk+/VWCn",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": []
+    }
+  ],
+  "vhosts": [{ "name": "/" }],
+  "permissions": [
+    { "user": "gameeducator", "vhost": "/", "configure": ".*", "write": ".*", "read": ".*" },
+    { "user": "dispositivo", "vhost": "/", "configure": "^mqtt-subscription-.*$",
+      "write": "^(amq\\.topic|mqtt-subscription-.*)$", "read": "^(amq\\.topic|mqtt-subscription-.*)$" }
+  ],
+  "topic_permissions": [
+    { "user": "dispositivo", "vhost": "/", "exchange": "amq.topic",
+      "write": "^gameeducator\\.lab\\..*", "read": "^gameeducator\\.lab\\..*" }
+  ],
+  "exchanges": [
+    { "name": "gameeducator.eventos", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
+    { "name": "gameeducator.dlx", "vhost": "/", "type": "topic", "durable": true, "auto_delete": false, "internal": false, "arguments": {} }
+  ],
+  "queues": [
+    { "name": "notificacao.eventos", "vhost": "/", "durable": true, "auto_delete": false,
+      "arguments": { "x-queue-type": "quorum", "x-dead-letter-exchange": "gameeducator.dlx", "x-dead-letter-routing-key": "notificacao.dlq" } },
+    { "name": "notificacao.eventos.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-queue-type": "quorum" } },
+    { "name": "analytics.eventos", "vhost": "/", "durable": true, "auto_delete": false,
+      "arguments": { "x-queue-type": "quorum", "x-max-length": 100000 } },
+    { "name": "core.iot.eventos", "vhost": "/", "durable": true, "auto_delete": false,
+      "arguments": { "x-queue-type": "quorum", "x-dead-letter-exchange": "gameeducator.dlx", "x-dead-letter-routing-key": "core.iot.dlq" } },
+    { "name": "core.iot.eventos.dlq", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-queue-type": "quorum" } }
+  ],
+  "bindings": [
+    { "source": "gameeducator.eventos", "vhost": "/", "destination": "notificacao.eventos", "destination_type": "queue", "routing_key": "gamificacao.#", "arguments": {} },
+    { "source": "gameeducator.eventos", "vhost": "/", "destination": "analytics.eventos", "destination_type": "queue", "routing_key": "#", "arguments": {} },
+    { "source": "amq.topic", "vhost": "/", "destination": "core.iot.eventos", "destination_type": "queue", "routing_key": "gameeducator.lab.*.dispositivo.*.evento", "arguments": {} },
+    { "source": "gameeducator.dlx", "vhost": "/", "destination": "notificacao.eventos.dlq", "destination_type": "queue", "routing_key": "notificacao.dlq", "arguments": {} },
+    { "source": "gameeducator.dlx", "vhost": "/", "destination": "core.iot.eventos.dlq", "destination_type": "queue", "routing_key": "core.iot.dlq", "arguments": {} }
+  ]
+}

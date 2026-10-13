@@ -1,0 +1,110 @@
+# Stack do Architecture Lab B1 (Desafios 3 a 6). Uso, a partir da raiz do gameeducator-backend:
+#   docker compose -f labs/docker-compose.yml up -d --build
+#   labs/desafio-3/executar.sh ... labs/desafio-6/executar.sh   (gravam a evidencia em docs/arquitetura/evidencias)
+#   docker compose -f labs/docker-compose.yml down -v
+# Portas: 8080 Core | 8000 IA | 15672 RabbitMQ UI | 1883 MQTT | 9090 Prometheus | 3000 Grafana | 8085 notificacao.
+# Usa as mesmas portas 8080/5432 dos outros compose: nao suba dois stacks ao mesmo tempo.
+# O servico de IA e buildado do repositorio irmao ../../gameeducator-ia (mesma convencao de pastas do Jenkins).
+name: gameeducator-b1
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gameeducator
+      POSTGRES_USER: gameeducator
+      POSTGRES_PASSWORD: gameeducator
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gameeducator -d gameeducator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    hostname: rabbitmq
+    volumes:
+      - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports: ["5672:5672", "15672:15672", "1883:1883", "15692:15692"]
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity && rabbitmq-diagnostics -q check_running"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  ia:
+    image: gameeducator-ia:lab
+    build:
+      context: ../../gameeducator-ia
+      dockerfile: docker/ia.Dockerfile
+      target: runtime
+    environment:
+      IA_ADMIN_HABILITADO: "true"   # lab: PUT /admin/atraso provoca lentidao
+    ports: ["8000:8000"]
+
+  backend:
+    image: gameeducator-backend:lab
+    build:
+      context: ..
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres,dev
+      DB_HOST: db
+      DB_NAME: gameeducator
+      DB_USER: gameeducator
+      DB_PASSWORD: gameeducator
+      IA_URL: http://ia:8000
+      MENSAGERIA_HABILITADA: "true"
+      EVENTOS_RELAY: "true"
+      EVENTOS_MODO: ${EVENTOS_MODO:-assincrono}
+      NOTIFICACAO_URL: http://notificacao:8085
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      db: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      # sem depends_on da IA: o Core sobe e opera com a IA fora (ADR-B1-003)
+    ports: ["8080:8080"]
+
+  notificacao:
+    image: gameeducator-notificacao:lab
+    build: ./notificacao-consumidor
+    environment:
+      RABBITMQ_URL: amqp://gameeducator:gameeducator@rabbitmq:5672/%2F
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+    ports: ["8085:8085"]
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alertas.yml:/etc/prometheus/alertas.yml:ro
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/gameeducator-b1.json
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+  # Ferramenta (nao sobe com "up"): docker compose -f labs/docker-compose.yml run --rm simulador-iot --host rabbitmq
+  simulador-iot:
+    image: gameeducator-simulador-iot:lab
+    build: ./simulador-iot
+    profiles: ["ferramentas"]
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+volumes:
+  rabbitmq-data:

@@ -1,0 +1,28 @@
+# Alertas = ASRs dos desafios anteriores transformados em condicao observavel (Desafio 6).
+groups:
+  - name: gameeducator-b1
+    rules:
+      - alert: CoreIndisponivel
+        expr: up{job="core"} == 0
+        for: 30s
+        labels: { severidade: critica, desafio: "D1/D6" }
+        annotations: { resumo: "Core (Spring Boot) nao responde ao Prometheus" }
+      - alert: IaEmModoDegradado
+        expr: max(gameeducator_ia_disjuntor_aberto) == 1
+        for: 15s
+        labels: { severidade: aviso, desafio: "D3" }
+        annotations: { resumo: "Disjuntor da IA aberto: recomendacoes em fallback e assistente respondendo 503" }
+      - alert: OutboxAcumulando
+        expr: max(gameeducator_outbox_pendentes) > 0
+        for: 1m
+        labels: { severidade: aviso, desafio: "D4" }
+        annotations: { resumo: "Eventos parados no outbox: broker indisponivel ou recusando publicacao" }
+      - alert: NotificacoesAcumulando
+        expr: rabbitmq_queue_messages_ready{queue="notificacao.eventos"} > 10
+        for: 1m
+        labels: { severidade: aviso, desafio: "D4" }
+        annotations: { resumo: "Consumidor de notificacoes parado ou lento (mensagens retidas na fila)" }
+      - alert: EventosIotInvalidos
+        expr: sum(increase(gameeducator_iot_eventos_total{resultado="invalido"}[5m])) > 5
+        labels: { severidade: aviso, desafio: "D5" }
+        annotations: { resumo: "Dispositivos enviando payload fora do contrato (ver fila core.iot.eventos.dlq)" }
