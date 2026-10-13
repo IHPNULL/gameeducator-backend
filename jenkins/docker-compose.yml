@@ -1,5 +1,5 @@
-# Jenkins local deste repositorio: sobe um Jenkins configurado (usuario,
-# plugins, job "gameeducator" ja criado) e um Docker-in-Docker (dind) so para
+# Jenkins local do GameEducator: sobe um Jenkins configurado (usuario,
+# plugins, 3 jobs ja criados: gameeducator-backend/-frontend/-automation) e um Docker-in-Docker (dind) so para
 # o Jenkins usar, isolado do Docker da sua maquina. Nada aqui e publicado nem
 # roda como servico global: e so um "docker compose up" nesta pasta.
 #
@@ -43,7 +43,7 @@ services:
       DOCKER_HOST: tcp://docker:2376
       DOCKER_CERT_PATH: /certs/client
       DOCKER_TLS_VERIFY: "1"
-      LOCAL_SOURCE_DIR: /src
+      LOCAL_SOURCES_ROOT: /src # pasta que contem os 3 repositorios (gameeducator-backend/-frontend/-automation)
       JENKINS_ADMIN_USER: ${JENKINS_ADMIN_USER:-admin}
       JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:-admin}
     ports:
@@ -51,7 +51,7 @@ services:
     volumes:
       - jenkins-data:/var/jenkins_home
       - jenkins-docker-certs:/certs/client:ro
-      - ../:/src:ro # repositorio local, so leitura (nao e um repositorio Git - ver PROJECT-BRIEF.md/D3)
+      - ${SOURCES_DIR:-../..}:/src:ro # pasta pai dos 3 repositorios, so leitura (padrao: a pasta acima deste repo)
 
 volumes:
   jenkins-data:

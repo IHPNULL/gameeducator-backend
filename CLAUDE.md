@@ -16,6 +16,8 @@ JaCoCo gate (`pom.xml`) fails `verify` below 95% lines / 90% branches; report at
 
 End-to-end Cucumber suites live in the separate `gameeducator-automation` repo and run against this backend in the `automation` profile.
 
+Local Jenkins (`jenkins/`) mounts the folder that contains all three repos (`SOURCES_DIR`, default `../..`) at `/src` and creates three jobs from each repo's `Jenkinsfile`: `gameeducator-backend`, `gameeducator-frontend`, `gameeducator-automation` (the last auto-triggers after backend or frontend succeeds; set in `jenkins/init.groovy.d/create-job.groovy`, which only runs on first boot — use `down -v` after editing it). Sibling checkouts must be named after their repos.
+
 `Jenkinsfile` runs the pipeline (image, tests in image, Postgres integration); local Jenkins in `jenkins/` (see its README). Docker build context is the repo root (`docker/backend.Dockerfile`).
 
 ## Architecture

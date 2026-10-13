@@ -11,7 +11,18 @@ containers, e nao publica nada na internet.
 
 ## 1. Subir o Jenkins
 
-A partir da raiz do repositorio (`gameeducator-backend`):
+Clone os 3 repositorios lado a lado (a pasta pai e montada no Jenkins):
+
+```
+gameeducator/
+├── gameeducator-backend      # este repo (contem jenkins/)
+├── gameeducator-frontend
+└── gameeducator-automation
+```
+
+Se estiverem em outro lugar, defina `SOURCES_DIR=/caminho/da/pasta/pai` em
+`jenkins/.env` (veja `.env.example`). Depois, a partir da raiz de
+`gameeducator-backend`:
 
 ```bash
 docker compose -f jenkins/docker-compose.yml up -d --build
@@ -23,8 +34,9 @@ Isso builda e sobe duas coisas:
   E onde as imagens do projeto (backend e Postgres) sao
   construidas e rodadas. Nao aparece no `docker images` da sua maquina - so
   dentro deste Jenkins.
-- `jenkins`: o Jenkins em si, ja configurado, com o job **gameeducator** ja
-  criado a partir do `Jenkinsfile` deste repositorio.
+- `jenkins`: o Jenkins em si, ja configurado, com os 3 jobs (**gameeducator-backend**,
+  **gameeducator-frontend** e **gameeducator-automation**) ja
+  criado a partir do `Jenkinsfile` de cada repositorio.
 
 Espere uns 15-30 segundos e abra:
 
@@ -36,12 +48,15 @@ Usuario e senha: **admin / admin** (uso local; para trocar, copie
 
 ## 2. Rodar a pipeline
 
-No Jenkins, entre no job **gameeducator** e clique em **Build Now** (ou
-**Construir agora**). Acompanhe em **Console Output**.
+No Jenkins, rode **Build Now** (ou **Construir agora**) nos jobs
+**gameeducator-backend** e **gameeducator-frontend**. Quando um deles termina
+com sucesso, o job **gameeducator-automation** dispara sozinho (backend e
+frontend sao construidos a partir das pastas locais) e roda as suites
+Cucumber de API e UI. Acompanhe em **Console Output**.
 
-A pipeline faz, nesta ordem, parando no primeiro erro:
+O job **gameeducator-backend** faz, nesta ordem, parando no primeiro erro:
 
-1. Pega o codigo (desta pasta local).
+1. Pega o codigo (da pasta local do repositorio).
 2. Builda a imagem de **teste** do backend e roda `./mvnw verify` dentro
    dela (os testes + o gate de cobertura do JaCoCo).
 3. Builda a imagem **final** do backend (`gameeducator-backend`).
@@ -54,8 +69,9 @@ Se um teste quebrar, o estagio correspondente fica vermelho, os estagios
 seguintes aparecem como "skipped", e o build final fica **FAILURE** - a
 pipeline nao segue em frente com um teste quebrado.
 
-> Frontend e automacao (Cucumber API + UI) tem pipelines proprias nos
-> repositorios `gameeducator-frontend` e `gameeducator-automation`.
+> **gameeducator-frontend**: testes Vitest na imagem + build da imagem Nginx.
+> **gameeducator-automation**: builda backend e frontend das pastas locais, sobe
+> os dois no perfil `automation` e roda Cucumber API + UI.
 
 ## 3. Ver as imagens geradas
 
@@ -101,12 +117,11 @@ Jenkins inicia (`docker compose ... up` ou `restart`), sem precisar de
   publica imagem nenhuma. O estagio so seria executado numa branch `main`
   com um registry configurado, o que nao existe neste ambiente local -
   entao ele nunca chega a precisar do plugin.
-- **O codigo vem de uma pasta local, nao do Git.** Esta copia do repositorio
-  nao tem historico Git. O Jenkins le o codigo direto da pasta (montada
-  so-leitura em `/src`), em vez de um "checkout" de um repositorio remoto.
-  Se um dia este projeto ganhar um repositorio Git de verdade, o mesmo
-  `Jenkinsfile` funciona com "checkout scm" normalmente (o proprio
-  Jenkinsfile ja sabe escolher entre os dois, ver o 1o estagio).
+- **O codigo vem das pastas locais, nao do GitHub.** O Jenkins le cada
+  repositorio direto da pasta pai montada so-leitura em `/src` (variavel
+  `LOCAL_SOURCES_ROOT`), entao testa o que esta na sua maquina, inclusive
+  alteracoes nao commitadas. Sem essa variavel, os Jenkinsfiles usam
+  "checkout scm" normalmente.
 - **So testado no Docker deste Mac (Apple Silicon, via Colima).** Deve
   funcionar em qualquer Docker com suporte a `privileged: true` (a maioria
   funciona), mas isso nao foi testado em outro sistema operacional.

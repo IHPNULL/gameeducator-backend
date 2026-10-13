@@ -7,6 +7,20 @@ O frontend fica no repositório [gameeducator-frontend](https://github.com/IHPNU
 
 **Integrantes (Grupo 6):** Italo Haas Pascoli (190294) · Maria Eduarda Mota Zandonade (200953)
 
+## Setup local (3 repositórios lado a lado)
+
+```
+gameeducator/                 # qualquer pasta
+├── gameeducator-backend      # API + Jenkins local (jenkins/)
+├── gameeducator-frontend     # app Vue
+└── gameeducator-automation   # suítes Cucumber (API + UI)
+```
+
+```bash
+mkdir gameeducator && cd gameeducator
+for r in backend frontend automation; do git clone https://github.com/IHPNULL/gameeducator-$r.git; done
+```
+
 ## Como rodar
 
 ```bash
@@ -33,7 +47,7 @@ As suítes Cucumber (API e UI) ficam no repositório [gameeducator-automation](h
 
 ## CI
 
-`Jenkinsfile` builda a imagem, roda os testes dentro dela, valida a integração com Postgres. Jenkins local: veja [`jenkins/README.md`](jenkins/README.md).
+`Jenkinsfile` builda a imagem, roda os testes dentro dela, valida a integração com Postgres. Jenkins local (com os 3 jobs: backend, frontend e automação): `docker compose -f jenkins/docker-compose.yml up -d --build` e abra http://127.0.0.1:8090 (admin/admin). Veja [`jenkins/README.md`](jenkins/README.md).
 
 O planejamento ATDD (BDD → TDD RED/GREEN/BLUE) e a rastreabilidade cenário → service → teste estão em
 [`BACKLOG.md`](BACKLOG.md).

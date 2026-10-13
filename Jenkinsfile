@@ -25,11 +25,11 @@ pipeline {
             steps {
                 deleteDir()
                 script {
-                    // LOCAL_SOURCE_DIR e definido pelo Jenkins local (jenkins/docker-compose.yml):
+                    // LOCAL_SOURCES_ROOT e definido pelo Jenkins local (jenkins/docker-compose.yml):
                     // a pasta local chega por volume somente-leitura. Sem ele, usa "checkout scm".
-                    if (env.LOCAL_SOURCE_DIR) {
+                    if (env.LOCAL_SOURCES_ROOT) {
                         sh """
-                            tar -C "${env.LOCAL_SOURCE_DIR}" \\
+                            tar -C "${env.LOCAL_SOURCES_ROOT}/gameeducator-backend" \\
                                 --exclude=.git --exclude=target \\
                                 -cf - . | tar -xf -
                         """
@@ -61,6 +61,7 @@ pipeline {
                     sh "docker rm -f ${COMPOSE_PROJECT_NAME}-backend-test || true"
                     junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
                     archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
+                    fingerprint artifacts: 'target/*.jar', allowEmptyArchive: true
                     jacoco(
                         execPattern: 'target/jacoco.exec',
                         classPattern: 'target/classes',
