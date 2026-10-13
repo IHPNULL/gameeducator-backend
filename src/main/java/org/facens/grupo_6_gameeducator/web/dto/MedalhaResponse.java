@@ -1,11 +1,11 @@
 package org.facens.grupo_6_gameeducator.web.dto;
 
 import java.time.LocalDateTime;
-import org.facens.grupo_6_gameeducator.domain.Medalha;
+import org.facens.grupo_6_gameeducator.gamificacao.MedalhaDoAluno;
 
 public record MedalhaResponse(int marcoXp, LocalDateTime dataConcedida) {
 
-    public static MedalhaResponse de(Medalha medalha) {
-        return new MedalhaResponse(medalha.getMarcoXp(), medalha.getDataConcedida());
+    public static MedalhaResponse de(MedalhaDoAluno medalha) {
+        return new MedalhaResponse(medalha.marcoXp(), medalha.dataConcedida());
     }
 }

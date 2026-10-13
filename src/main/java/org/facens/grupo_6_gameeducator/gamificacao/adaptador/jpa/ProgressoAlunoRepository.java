@@ -1,8 +1,7 @@
-package org.facens.grupo_6_gameeducator.repository;
+package org.facens.grupo_6_gameeducator.gamificacao.adaptador.jpa;
 
 import java.util.List;
 import java.util.Optional;
-import org.facens.grupo_6_gameeducator.domain.ProgressoAluno;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 

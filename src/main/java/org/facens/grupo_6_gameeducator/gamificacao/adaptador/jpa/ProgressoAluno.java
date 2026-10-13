@@ -1,4 +1,4 @@
-package org.facens.grupo_6_gameeducator.domain;
+package org.facens.grupo_6_gameeducator.gamificacao.adaptador.jpa;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -6,6 +6,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -13,12 +14,21 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.facens.grupo_6_gameeducator.domain.Curso;
+import org.facens.grupo_6_gameeducator.domain.Usuario;
 
-/** XP acumulado por um aluno dentro de um curso: base do progresso e do ranking da turma. */
+/**
+ * Mapeamento JPA do progresso de XP (tabela da AC1, inalterada). Interno ao adaptador: a regra
+ * de credito de XP mora em {@code gamificacao.dominio.Progresso}.
+ *
+ * <p>O indice (curso_id, xp_total) sustenta o ranking da turma, que e a leitura que mais cresce
+ * (ver evidencia do Desafio 1 em docs/arquitetura).
+ */
 @Entity
 @Table(
         name = "progresso_aluno",
-        uniqueConstraints = @UniqueConstraint(name = "uk_progresso_aluno_curso", columnNames = {"aluno_id", "curso_id"})
+        uniqueConstraints = @UniqueConstraint(name = "uk_progresso_aluno_curso", columnNames = {"aluno_id", "curso_id"}),
+        indexes = @Index(name = "ix_progresso_curso_xp", columnList = "curso_id, xp_total DESC")
 )
 @Getter
 @Setter
@@ -44,12 +54,5 @@ public class ProgressoAluno {
         this.aluno = aluno;
         this.curso = curso;
         this.xpTotal = 0;
-    }
-
-    public void creditarXp(int xp) {
-        if (xp < 0) {
-            throw new IllegalArgumentException("XP creditado nao pode ser negativo");
-        }
-        this.xpTotal += xp;
     }
 }

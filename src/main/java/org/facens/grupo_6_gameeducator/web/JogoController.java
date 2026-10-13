@@ -2,8 +2,7 @@ package org.facens.grupo_6_gameeducator.web;
 
 import jakarta.validation.Valid;
 import java.util.List;
-import java.util.stream.IntStream;
-import org.facens.grupo_6_gameeducator.domain.ProgressoAluno;
+import org.facens.grupo_6_gameeducator.gamificacao.GamificacaoApi;
 import org.facens.grupo_6_gameeducator.service.JogoService;
 import org.facens.grupo_6_gameeducator.service.dto.ResultadoResposta;
 import org.facens.grupo_6_gameeducator.web.dto.MedalhaResponse;
@@ -27,9 +26,11 @@ public class JogoController {
     public static final String HEADER_USUARIO = MissaoController.HEADER_USUARIO;
 
     private final JogoService jogoService;
+    private final GamificacaoApi gamificacao;
 
-    public JogoController(JogoService jogoService) {
+    public JogoController(JogoService jogoService, GamificacaoApi gamificacao) {
         this.jogoService = jogoService;
+        this.gamificacao = gamificacao;
     }
 
     /** Aluno matriculado responde um desafio e recebe o resultado com o XP. */
@@ -59,9 +60,8 @@ public class JogoController {
     /** Ranking de XP da turma, do maior para o menor. */
     @GetMapping("/cursos/{cursoId}/ranking")
     public List<RankingItemResponse> ranking(@PathVariable Long cursoId) {
-        List<ProgressoAluno> progressos = jogoService.ranking(cursoId);
-        return IntStream.range(0, progressos.size())
-                .mapToObj(i -> RankingItemResponse.de(i + 1, progressos.get(i)))
+        return gamificacao.ranking(cursoId).stream()
+                .map(RankingItemResponse::de)
                 .toList();
     }
 
@@ -69,7 +69,7 @@ public class JogoController {
     @GetMapping("/cursos/{cursoId}/medalhas")
     public List<MedalhaResponse> medalhas(@PathVariable Long cursoId,
                                           @RequestHeader(HEADER_USUARIO) Long usuarioId) {
-        return jogoService.medalhasDoAluno(usuarioId, cursoId).stream()
+        return gamificacao.medalhasDoAluno(usuarioId, cursoId).stream()
                 .map(MedalhaResponse::de)
                 .toList();
     }

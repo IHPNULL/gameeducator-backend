@@ -6,9 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import org.facens.grupo_6_gameeducator.domain.Curso;
 import org.facens.grupo_6_gameeducator.domain.Desafio;
-import org.facens.grupo_6_gameeducator.domain.Medalha;
 import org.facens.grupo_6_gameeducator.domain.Missao;
 import org.facens.grupo_6_gameeducator.domain.Usuario;
+import org.facens.grupo_6_gameeducator.gamificacao.MedalhaDoAluno;
 import org.facens.grupo_6_gameeducator.service.dto.NovaMissaoRequest;
 import org.facens.grupo_6_gameeducator.service.dto.NovoDesafioRequest;
 import org.facens.grupo_6_gameeducator.service.dto.ResultadoResposta;
@@ -37,9 +37,9 @@ class AlunoGanhaMedalhaTest extends CenarioBase {
         ResultadoResposta resultado = jogoService.responder(aluno.getId(), desafio.getId(), INDICE_CORRETO);
 
         assertEquals(List.of(50), resultado.medalhasConquistadas());
-        List<Medalha> medalhas = jogoService.medalhasDoAluno(aluno.getId(), curso.getId());
+        List<MedalhaDoAluno> medalhas = gamificacao.medalhasDoAluno(aluno.getId(), curso.getId());
         assertEquals(1, medalhas.size());
-        assertEquals(50, medalhas.get(0).getMarcoXp());
+        assertEquals(50, medalhas.get(0).marcoXp());
     }
 
     @Test
@@ -54,7 +54,7 @@ class AlunoGanhaMedalhaTest extends CenarioBase {
         ResultadoResposta repeticao = jogoService.responder(aluno.getId(), desafio.getId(), INDICE_CORRETO);
 
         assertTrue(repeticao.medalhasConquistadas().isEmpty());
-        assertEquals(1, jogoService.medalhasDoAluno(aluno.getId(), curso.getId()).size());
+        assertEquals(1, gamificacao.medalhasDoAluno(aluno.getId(), curso.getId()).size());
     }
 
     @Test
@@ -92,7 +92,7 @@ class AlunoGanhaMedalhaTest extends CenarioBase {
                 aluno.getId(), missao.getDesafios().get(1).getId(), INDICE_CORRETO);
 
         assertEquals(List.of(100), segundo.medalhasConquistadas());
-        assertEquals(2, jogoService.medalhasDoAluno(aluno.getId(), curso.getId()).size());
+        assertEquals(2, gamificacao.medalhasDoAluno(aluno.getId(), curso.getId()).size());
     }
 
     private Curso cursoComDesafioDeXp(int xp) {

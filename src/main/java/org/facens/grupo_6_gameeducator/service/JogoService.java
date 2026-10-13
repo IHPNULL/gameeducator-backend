@@ -1,22 +1,26 @@
 package org.facens.grupo_6_gameeducator.service;
 
-import java.util.ArrayList;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.facens.grupo_6_gameeducator.domain.Curso;
 import org.facens.grupo_6_gameeducator.domain.Desafio;
 import org.facens.grupo_6_gameeducator.domain.Matricula;
-import org.facens.grupo_6_gameeducator.domain.Medalha;
-import org.facens.grupo_6_gameeducator.domain.ProgressoAluno;
+import org.facens.grupo_6_gameeducator.domain.Missao;
 import org.facens.grupo_6_gameeducator.domain.Tentativa;
 import org.facens.grupo_6_gameeducator.domain.Usuario;
+import org.facens.grupo_6_gameeducator.eventos.EmissorDeEventos;
+import org.facens.grupo_6_gameeducator.eventos.MedalhaConquistada;
+import org.facens.grupo_6_gameeducator.eventos.MissaoConcluida;
 import org.facens.grupo_6_gameeducator.exception.AcessoNegadoException;
 import org.facens.grupo_6_gameeducator.exception.RecursoNaoEncontradoException;
 import org.facens.grupo_6_gameeducator.exception.RegraDeNegocioException;
+import org.facens.grupo_6_gameeducator.gamificacao.GamificacaoApi;
+import org.facens.grupo_6_gameeducator.gamificacao.RespostaPontuavel;
+import org.facens.grupo_6_gameeducator.gamificacao.ResultadoPontuacao;
 import org.facens.grupo_6_gameeducator.repository.CursoRepository;
 import org.facens.grupo_6_gameeducator.repository.DesafioRepository;
 import org.facens.grupo_6_gameeducator.repository.MatriculaRepository;
-import org.facens.grupo_6_gameeducator.repository.MedalhaRepository;
-import org.facens.grupo_6_gameeducator.repository.ProgressoAlunoRepository;
 import org.facens.grupo_6_gameeducator.repository.TentativaRepository;
 import org.facens.grupo_6_gameeducator.repository.UsuarioRepository;
 import org.facens.grupo_6_gameeducator.service.dto.DesempenhoAluno;
@@ -32,31 +36,28 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class JogoService {
 
-    /** Marcos de XP que concedem uma medalha ao aluno, no curso. */
-    private static final List<Integer> MARCOS_XP = List.of(50, 100, 250, 500);
-
     private final UsuarioRepository usuarioRepository;
     private final CursoRepository cursoRepository;
     private final DesafioRepository desafioRepository;
     private final MatriculaRepository matriculaRepository;
     private final TentativaRepository tentativaRepository;
-    private final ProgressoAlunoRepository progressoAlunoRepository;
-    private final MedalhaRepository medalhaRepository;
+    private final GamificacaoApi gamificacao;
+    private final EmissorDeEventos eventos;
 
     public JogoService(UsuarioRepository usuarioRepository,
                        CursoRepository cursoRepository,
                        DesafioRepository desafioRepository,
                        MatriculaRepository matriculaRepository,
                        TentativaRepository tentativaRepository,
-                       ProgressoAlunoRepository progressoAlunoRepository,
-                       MedalhaRepository medalhaRepository) {
+                       GamificacaoApi gamificacao,
+                       EmissorDeEventos eventos) {
         this.usuarioRepository = usuarioRepository;
         this.cursoRepository = cursoRepository;
         this.desafioRepository = desafioRepository;
         this.matriculaRepository = matriculaRepository;
         this.tentativaRepository = tentativaRepository;
-        this.progressoAlunoRepository = progressoAlunoRepository;
-        this.medalhaRepository = medalhaRepository;
+        this.gamificacao = gamificacao;
+        this.eventos = eventos;
     }
 
     /**
@@ -83,59 +84,43 @@ public class JogoService {
 
         boolean correta = desafio.estaCorreta(indiceResposta);
         boolean jaTinhaAcertado = tentativaRepository.existsByAlunoIdAndDesafioIdAndCorretaTrue(alunoId, desafioId);
-        int xpGanho = (correta && !jaTinhaAcertado) ? desafio.getXp() : 0;
 
-        ProgressoAluno progresso = progressoDoAluno(aluno, curso);
-        int xpAntes = progresso.getXpTotal();
-        progresso.creditarXp(xpGanho);
-        progressoAlunoRepository.save(progresso);
-        int xpDepois = progresso.getXpTotal();
+        // XP e medalhas sao regras do modulo de gamificacao (ADR-B1-001/002): o jogo so informa o fato.
+        ResultadoPontuacao pontuacao = gamificacao.pontuarResposta(
+                new RespostaPontuavel(alunoId, curso.getId(), desafio.getXp(), correta, jaTinhaAcertado));
 
-        tentativaRepository.save(new Tentativa(aluno, desafio, indiceResposta, correta, xpGanho));
+        tentativaRepository.save(new Tentativa(aluno, desafio, indiceResposta, correta, pontuacao.xpGanho()));
 
-        List<Integer> medalhasConquistadas = concederMedalhas(aluno, curso, xpAntes, xpDepois);
+        // Desafio 4: o que e eventual (notificacao/analytics) sai como evento na MESMA transacao (outbox).
+        Instant agora = Instant.now();
+        for (int marco : pontuacao.medalhasConquistadas()) {
+            eventos.emitir(new MedalhaConquistada(UUID.randomUUID().toString(), alunoId, curso.getId(), marco, agora));
+        }
+        boolean missaoConcluida = correta && !jaTinhaAcertado && concluiuAMissao(alunoId, desafio.getMissao());
+        if (missaoConcluida) {
+            eventos.emitir(new MissaoConcluida(UUID.randomUUID().toString(), alunoId, curso.getId(),
+                    desafio.getMissao().getId(), desafio.getMissao().getTitulo(), pontuacao.xpTotalNoCurso(), agora));
+        }
 
-        return new ResultadoResposta(correta, xpGanho, xpDepois, medalhasConquistadas);
+        return new ResultadoResposta(correta, pontuacao.xpGanho(), pontuacao.xpTotalNoCurso(),
+                pontuacao.medalhasConquistadas(), missaoConcluida);
     }
 
-    /** Concede uma medalha para cada marco de XP cruzado entre xpAntes (exclusive) e xpDepois (inclusive). */
-    private List<Integer> concederMedalhas(Usuario aluno, Curso curso, int xpAntes, int xpDepois) {
-        List<Integer> conquistadas = new ArrayList<>();
-        for (int marco : MARCOS_XP) {
-            boolean cruzouOMarco = xpAntes < marco && xpDepois >= marco;
-            if (cruzouOMarco
-                    && !medalhaRepository.existsByAlunoIdAndCursoIdAndMarcoXp(aluno.getId(), curso.getId(), marco)) {
-                medalhaRepository.save(new Medalha(aluno, curso, marco));
-                conquistadas.add(marco);
-            }
-        }
-        return conquistadas;
+    /** A missao esta concluida quando o aluno tem ao menos um acerto em cada desafio dela. */
+    private boolean concluiuAMissao(Long alunoId, Missao missao) {
+        return tentativaRepository.contarDesafiosAcertadosNaMissao(alunoId, missao.getId()) == missao.getDesafios().size();
     }
 
     /** XP acumulado do aluno em um curso. Zero enquanto ele nao pontuou. */
     @Transactional(readOnly = true)
     public int xpNoCurso(Long alunoId, Long cursoId) {
-        return progressoAlunoRepository.findByAlunoIdAndCursoId(alunoId, cursoId)
-                .map(ProgressoAluno::getXpTotal)
-                .orElse(0);
+        return gamificacao.xpNoCurso(alunoId, cursoId);
     }
 
     /** Historico de tentativas do aluno em um desafio, da mais recente para a mais antiga. */
     @Transactional(readOnly = true)
     public List<Tentativa> historico(Long alunoId, Long desafioId) {
         return tentativaRepository.findByAlunoIdAndDesafioIdOrderByDataHoraDesc(alunoId, desafioId);
-    }
-
-    /** Ranking de XP da turma, do maior para o menor. */
-    @Transactional(readOnly = true)
-    public List<ProgressoAluno> ranking(Long cursoId) {
-        return progressoAlunoRepository.findByCursoIdOrderByXpTotalDesc(cursoId);
-    }
-
-    /** Medalhas conquistadas pelo aluno naquele curso, do menor para o maior marco. */
-    @Transactional(readOnly = true)
-    public List<Medalha> medalhasDoAluno(Long alunoId, Long cursoId) {
-        return medalhaRepository.findByAlunoIdAndCursoIdOrderByMarcoXpAsc(alunoId, cursoId);
     }
 
     /** Desempenho da turma no curso: XP, tentativas e acertos de cada aluno matriculado. So o professor responsavel ve. */
@@ -163,10 +148,5 @@ public class JogoService {
         List<Tentativa> tentativas = tentativaRepository.findByAlunoIdAndDesafio_Missao_Curso_Id(aluno.getId(), cursoId);
         int acertos = (int) tentativas.stream().filter(Tentativa::isCorreta).count();
         return new DesempenhoAluno(aluno, xpTotal, tentativas.size(), acertos);
-    }
-
-    private ProgressoAluno progressoDoAluno(Usuario aluno, Curso curso) {
-        return progressoAlunoRepository.findByAlunoIdAndCursoId(aluno.getId(), curso.getId())
-                .orElseGet(() -> new ProgressoAluno(aluno, curso));
     }
 }

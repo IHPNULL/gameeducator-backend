@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 import org.facens.grupo_6_gameeducator.exception.AcessoNegadoException;
 import org.facens.grupo_6_gameeducator.exception.RecursoNaoEncontradoException;
 import org.facens.grupo_6_gameeducator.exception.RegraDeNegocioException;
+import org.facens.grupo_6_gameeducator.exception.ServicoIndisponivelException;
 import org.facens.grupo_6_gameeducator.web.dto.ErroResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,12 @@ public class RestExceptionHandler {
     @ExceptionHandler(RegraDeNegocioException.class)
     public ResponseEntity<ErroResponse> regraDeNegocio(RegraDeNegocioException e) {
         return resposta(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    /** Capacidade nao essencial fora do ar (ex.: IA): o cliente sabe que pode tentar depois. */
+    @ExceptionHandler(ServicoIndisponivelException.class)
+    public ResponseEntity<ErroResponse> servicoIndisponivel(ServicoIndisponivelException e) {
+        return resposta(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage());
     }
 
     /** Requisicao sem o header de usuario autenticado. */

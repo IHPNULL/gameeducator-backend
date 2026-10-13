@@ -7,17 +7,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import org.facens.grupo_6_gameeducator.domain.Curso;
 import org.facens.grupo_6_gameeducator.domain.Desafio;
-import org.facens.grupo_6_gameeducator.domain.Medalha;
 import org.facens.grupo_6_gameeducator.domain.Missao;
 import org.facens.grupo_6_gameeducator.domain.Papel;
-import org.facens.grupo_6_gameeducator.domain.ProgressoAluno;
 import org.facens.grupo_6_gameeducator.domain.Tentativa;
 import org.facens.grupo_6_gameeducator.domain.Usuario;
 import org.facens.grupo_6_gameeducator.exception.AcessoNegadoException;
 import org.facens.grupo_6_gameeducator.exception.RecursoNaoEncontradoException;
+import org.facens.grupo_6_gameeducator.gamificacao.GamificacaoApi;
+import org.facens.grupo_6_gameeducator.gamificacao.MedalhaDoAluno;
+import org.facens.grupo_6_gameeducator.gamificacao.PosicaoNoRanking;
 import org.facens.grupo_6_gameeducator.service.JogoService;
 import org.facens.grupo_6_gameeducator.service.dto.ResultadoResposta;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +48,9 @@ class JogoControllerTest {
 
     @MockitoBean
     private JogoService jogoService;
+
+    @MockitoBean
+    private GamificacaoApi gamificacao;
 
     @Test
     @DisplayName("POST resposta correta -> 200 com correta=true e o XP do desafio")
@@ -159,10 +164,9 @@ class JogoControllerTest {
     @Test
     @DisplayName("GET ranking -> turma ordenada por XP, com posicao")
     void deveRetornarRankingDaTurma() throws Exception {
-        Curso curso = curso();
-        ProgressoAluno primeiro = progresso(usuario(2L, "Bruno"), curso, 30);
-        ProgressoAluno segundo = progresso(usuario(3L, "Daniela"), curso, 10);
-        when(jogoService.ranking(CURSO_ID)).thenReturn(List.of(primeiro, segundo));
+        when(gamificacao.ranking(CURSO_ID)).thenReturn(List.of(
+                new PosicaoNoRanking(1, 2L, "Bruno", 30),
+                new PosicaoNoRanking(2, 3L, "Daniela", 10)));
 
         mockMvc.perform(get("/api/cursos/{cursoId}/ranking", CURSO_ID))
                 .andExpect(status().isOk())
@@ -177,10 +181,8 @@ class JogoControllerTest {
     @Test
     @DisplayName("GET medalhas -> marcos de XP conquistados pelo aluno no curso")
     void deveRetornarMedalhasDoAluno() throws Exception {
-        Usuario aluno = aluno();
-        Curso curso = curso();
-        Medalha medalha = new Medalha(aluno, curso, 50);
-        when(jogoService.medalhasDoAluno(ALUNO_ID, CURSO_ID)).thenReturn(List.of(medalha));
+        when(gamificacao.medalhasDoAluno(ALUNO_ID, CURSO_ID))
+                .thenReturn(List.of(new MedalhaDoAluno(50, LocalDateTime.now())));
 
         mockMvc.perform(get("/api/cursos/{cursoId}/medalhas", CURSO_ID).header(HEADER, ALUNO_ID))
                 .andExpect(status().isOk())
@@ -213,11 +215,5 @@ class JogoControllerTest {
         desafio.setId(DESAFIO_ID);
         missao.adicionarDesafio(desafio);
         return desafio;
-    }
-
-    private static ProgressoAluno progresso(Usuario aluno, Curso curso, int xp) {
-        ProgressoAluno progresso = new ProgressoAluno(aluno, curso);
-        progresso.creditarXp(xp);
-        return progresso;
     }
 }

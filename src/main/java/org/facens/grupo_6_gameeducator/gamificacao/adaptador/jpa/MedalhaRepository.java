@@ -1,7 +1,6 @@
-package org.facens.grupo_6_gameeducator.repository;
+package org.facens.grupo_6_gameeducator.gamificacao.adaptador.jpa;
 
 import java.util.List;
-import org.facens.grupo_6_gameeducator.domain.Medalha;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MedalhaRepository extends JpaRepository<Medalha, Long> {

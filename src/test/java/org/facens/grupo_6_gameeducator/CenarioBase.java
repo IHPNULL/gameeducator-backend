@@ -6,13 +6,12 @@ import org.facens.grupo_6_gameeducator.domain.Curso;
 import org.facens.grupo_6_gameeducator.domain.Matricula;
 import org.facens.grupo_6_gameeducator.domain.Papel;
 import org.facens.grupo_6_gameeducator.domain.Usuario;
+import org.facens.grupo_6_gameeducator.gamificacao.GamificacaoApi;
 import org.facens.grupo_6_gameeducator.repository.CursoRepository;
 import org.facens.grupo_6_gameeducator.repository.MatriculaRepository;
-import org.facens.grupo_6_gameeducator.repository.MedalhaRepository;
 import org.facens.grupo_6_gameeducator.repository.MissaoRepository;
 import org.facens.grupo_6_gameeducator.repository.NotaRepository;
 import org.facens.grupo_6_gameeducator.repository.PostRepository;
-import org.facens.grupo_6_gameeducator.repository.ProgressoAlunoRepository;
 import org.facens.grupo_6_gameeducator.repository.TentativaRepository;
 import org.facens.grupo_6_gameeducator.repository.UsuarioRepository;
 import org.facens.grupo_6_gameeducator.service.ForumService;
@@ -46,10 +45,6 @@ abstract class CenarioBase {
     @Autowired
     protected TentativaRepository tentativaRepository;
     @Autowired
-    protected ProgressoAlunoRepository progressoAlunoRepository;
-    @Autowired
-    protected MedalhaRepository medalhaRepository;
-    @Autowired
     protected NotaRepository notaRepository;
     @Autowired
     protected PostRepository postRepository;
@@ -58,6 +53,8 @@ abstract class CenarioBase {
     protected MissaoService missaoService;
     @Autowired
     protected JogoService jogoService;
+    @Autowired
+    protected GamificacaoApi gamificacao;
     @Autowired
     protected NotaService notaService;
     @Autowired

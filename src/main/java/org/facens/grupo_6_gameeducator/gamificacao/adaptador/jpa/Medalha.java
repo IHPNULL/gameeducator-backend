@@ -1,4 +1,4 @@
-package org.facens.grupo_6_gameeducator.domain;
+package org.facens.grupo_6_gameeducator.gamificacao.adaptador.jpa;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -14,8 +14,10 @@ import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.facens.grupo_6_gameeducator.domain.Curso;
+import org.facens.grupo_6_gameeducator.domain.Usuario;
 
-/** Medalha concedida ao aluno ao atingir um marco de XP em um curso (ex.: 50, 100, 250, 500). */
+/** Mapeamento JPA das medalhas (tabela da AC1, inalterada). Interno ao adaptador de gamificacao. */
 @Entity
 @Table(
         name = "medalha",
