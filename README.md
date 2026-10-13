@@ -21,6 +21,12 @@ mkdir gameeducator && cd gameeducator
 for r in backend frontend automation; do git clone https://github.com/IHPNULL/gameeducator-$r.git; done
 ```
 
+## Arquitetura (B1)
+
+Registro arquitetural do Architecture Lab B1 (6 desafios, matriz de ASRs, ADRs, C4 e evidências):
+[`docs/arquitetura/README.md`](docs/arquitetura/README.md). Mini-labs e stack do lab (RabbitMQ/MQTT, IA, Prometheus, Grafana): [`labs/`](labs/README.md).
+O serviço de IA (Python/FastAPI) fica no repositório [gameeducator-ia](https://github.com/IHPNULL/gameeducator-ia).
+
 ## Como rodar
 
 ```bash
@@ -47,7 +53,7 @@ As suítes Cucumber (API e UI) ficam no repositório [gameeducator-automation](h
 
 ## CI
 
-`Jenkinsfile` builda a imagem, roda os testes dentro dela, valida a integração com Postgres. Jenkins local (com os 3 jobs: backend, frontend e automação): `docker compose -f jenkins/docker-compose.yml up -d --build` e abra http://127.0.0.1:8090 (admin/admin). Veja [`jenkins/README.md`](jenkins/README.md).
+`Jenkinsfile` builda a imagem, roda os testes dentro dela, valida a integração com Postgres. Jenkins local (com os jobs backend, frontend, automação e IA): `docker compose -f jenkins/docker-compose.yml up -d --build` e abra http://127.0.0.1:8090 (admin/admin). Veja [`jenkins/README.md`](jenkins/README.md).
 
 O planejamento ATDD (BDD → TDD RED/GREEN/BLUE) e a rastreabilidade cenário → service → teste estão em
 [`BACKLOG.md`](BACKLOG.md).

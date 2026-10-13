@@ -98,6 +98,18 @@ pipeline {
                         exit 1
                     fi
                 '''
+                // B1 Desafio 6 (ADR-B1-006): smoke de observabilidade. Bloqueia o deploy se a imagem
+                // nao expuser saude e as metricas que servem de evidencia dos ASRs (D3 IA, D4 outbox).
+                sh '''
+                    C="docker compose -f docker/docker-compose.yml exec -T backend"
+                    $C wget -q -O- http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"' \
+                        || { echo "ERRO: /actuator/health nao esta UP" >&2; exit 1; }
+                    METRICAS=$($C wget -q -O- http://127.0.0.1:8080/actuator/prometheus)
+                    for m in gameeducator_outbox_pendentes gameeducator_ia_disjuntor_aberto http_server_requests_seconds; do
+                        echo "$METRICAS" | grep -q "^$m" || { echo "ERRO: metrica $m ausente em /actuator/prometheus" >&2; exit 1; }
+                    done
+                    echo "Smoke de observabilidade OK"
+                '''
             }
             post {
                 always {

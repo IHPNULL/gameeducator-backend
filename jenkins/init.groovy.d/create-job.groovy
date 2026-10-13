@@ -1,4 +1,4 @@
-// Cria (ou atualiza) os 3 jobs de pipeline do GameEducator a partir do
+// Cria (ou atualiza) os 4 jobs de pipeline do GameEducator a partir do
 // Jenkinsfile de cada repositorio, toda vez que o Jenkins sobe:
 //   gameeducator-backend, gameeducator-frontend, gameeducator-automation
 // O job de automacao dispara sozinho quando o backend OU o frontend termina com sucesso.
@@ -28,7 +28,8 @@ def jenkinsInstance = Jenkins.get()
 // LOCAL_SOURCES_ROOT e onde a pasta com os 3 repositorios fica montada
 // somente-leitura dentro do container do Jenkins (ver jenkins/docker-compose.yml).
 def sourcesRoot = System.getenv('LOCAL_SOURCES_ROOT') ?: '/src'
-def jobNames = ['gameeducator-backend', 'gameeducator-frontend', 'gameeducator-automation']
+// B1 (ADR-B1-006): o servico de IA tem pipeline proprio, independente do Core.
+def jobNames = ['gameeducator-backend', 'gameeducator-frontend', 'gameeducator-automation', 'gameeducator-ia']
 
 jobNames.each { jobName ->
     def jenkinsfile = new File("${sourcesRoot}/${jobName}/Jenkinsfile")

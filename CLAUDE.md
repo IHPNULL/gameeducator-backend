@@ -16,7 +16,7 @@ JaCoCo gate (`pom.xml`) fails `verify` below 95% lines / 90% branches; report at
 
 End-to-end Cucumber suites live in the separate `gameeducator-automation` repo and run against this backend in the `automation` profile.
 
-Local Jenkins (`jenkins/`) mounts the folder that contains all three repos (`SOURCES_DIR`, default `../..`) at `/src` and creates three jobs from each repo's `Jenkinsfile`: `gameeducator-backend`, `gameeducator-frontend`, `gameeducator-automation` (the last auto-triggers after backend or frontend succeeds; set in `jenkins/init.groovy.d/create-job.groovy`, which only runs on first boot — use `down -v` after editing it). Sibling checkouts must be named after their repos.
+Local Jenkins (`jenkins/`) mounts the folder that contains the sibling repos (`SOURCES_DIR`, default `../..`) at `/src` and creates four jobs from each repo's `Jenkinsfile`: `gameeducator-backend`, `gameeducator-frontend`, `gameeducator-automation`, `gameeducator-ia` (`gameeducator-automation` auto-triggers after backend or frontend succeeds; set in `jenkins/init.groovy.d/create-job.groovy`, which only runs on first boot — use `down -v` after editing it). Sibling checkouts must be named after their repos.
 
 `Jenkinsfile` runs the pipeline (image, tests in image, Postgres integration); local Jenkins in `jenkins/` (see its README). Docker build context is the repo root (`docker/backend.Dockerfile`).
 
@@ -31,3 +31,7 @@ Layers under `org.facens.grupo_6_gameeducator`: `web` (controllers + `web/dto` r
 ### Tests
 - Acceptance tests (`Aluno*Test`, `Professor*Test`) extend `CenarioBase` (fixtures `umProfessor`, `umAluno`, `umCurso`, `matricular`, `missaoDeExemplo`; `@Transactional`, rolled back per test), call services directly, Arrange/Action/Assert, `@DisplayName` citing the BDD criterion.
 - `web/*ControllerTest` are `@WebMvcTest` with mocked services; `CenarioBddIntegracaoTest` is end-to-end `@SpringBootTest`; `CaminhosDeErro*` and `RegrasDeDominioTest` cover error paths/invariants (needed for the coverage gate).
+
+## B1 architecture lab
+
+Architecture record (RF → ASR → ADR → C4 → evidence) lives in `docs/arquitetura/README.md`, ADRs in `docs/adr/`, mini-labs and the lab Docker stack in `labs/`. Module boundaries (`gamificacao`, `ia`, `eventos`, `iot`) are enforced by `arquitetura/ArquiteturaModularTest` (ArchUnit) during `verify` — new code must respect them. Broker features are off by default (`app.mensageria.habilitada=false`), so tests and dev need no RabbitMQ.
