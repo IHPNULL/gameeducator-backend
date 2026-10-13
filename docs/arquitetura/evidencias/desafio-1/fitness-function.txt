@@ -1,0 +1,11 @@
+== 1) com a classe violadora web.AtalhoProibido -> gamificacao.adaptador.jpa.ProgressoAluno
+[ERROR] Tests run: 6, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.487 s <<< FAILURE! -- in org.facens.grupo_6_gameeducator.arquitetura.ArquiteturaModularTest
+[ERROR] org.facens.grupo_6_gameeducator.arquitetura.ArquiteturaModularTest.outrosModulosSoUsamAApiPublica -- Time elapsed: 0.009 s <<< FAILURE!
+Architecture Violation [Priority: MEDIUM] - Rule 'D1: fora do modulo, so a GamificacaoApi e seus records sao visiveis' was violated (2 times):
+[ERROR]   ArquiteturaModularTest.outrosModulosSoUsamAApiPublica Architecture Violation [Priority: MEDIUM] - Rule 'D1: fora do modulo, so a GamificacaoApi e seus records sao visiveis' was violated (2 times):
+[ERROR] Tests run: 6, Failures: 1, Errors: 0, Skipped: 0
+exit code: 1
+
+== 2) classe removida
+exit code: 0
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.470 s -- in org.facens.grupo_6_gameeducator.arquitetura.ArquiteturaModularTest
