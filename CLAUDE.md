@@ -10,7 +10,7 @@ GameEducator backend: Java 21, Spring Boot 4, Spring Data JPA, H2 (default) / Po
 ./mvnw spring-boot:run                       # API on :8080; H2 in memory
 ./mvnw clean test                            # all tests
 ./mvnw test -Dtest=AlunoVeNotasTest          # one class (add #metodo for one method)
-./mvnw clean verify                          # tests + JaCoCo report + coverage gate
+./mvnw clean verify                          # tests + JaCoCo report + coverage gate + PMD check (JDK 21; PMD 7 breaks on JDK 25)
 ```
 JaCoCo gate (`pom.xml`) fails `verify` below 95% lines / 90% branches; report at `target/site/jacoco/index.html`. Bootstrap/seed/OpenAPI config classes are excluded — add new non-logic config classes to those excludes.
 

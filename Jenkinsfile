@@ -71,6 +71,21 @@ pipeline {
             }
         }
 
+        stage('Backend: PMD') {
+            // Analise estatica (CI). Reusa a imagem de teste; falha o build em violacoes de prioridade 1-2.
+            steps {
+                sh "docker rm -f ${COMPOSE_PROJECT_NAME}-backend-pmd || true"
+                sh "docker run --name ${COMPOSE_PROJECT_NAME}-backend-pmd gameeducator-backend:${IMAGE_TAG}-test ./mvnw -B compile pmd:pmd pmd:check"
+            }
+            post {
+                always {
+                    sh "docker cp ${COMPOSE_PROJECT_NAME}-backend-pmd:/app/target/pmd.xml pmd.xml || true"
+                    sh "docker rm -f ${COMPOSE_PROJECT_NAME}-backend-pmd || true"
+                    archiveArtifacts artifacts: 'pmd.xml', allowEmptyArchive: true
+                }
+            }
+        }
+
         stage('Backend: imagem') {
             steps {
                 sh "docker build -f docker/backend.Dockerfile -t gameeducator-backend:${IMAGE_TAG} ."
