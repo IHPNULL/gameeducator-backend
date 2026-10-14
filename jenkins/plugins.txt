@@ -8,6 +8,7 @@
 
 workflow-aggregator   # Pipeline (stage, steps, sh, dir, script, when, post, parameters...)
 git                   # suporte a "checkout scm" (usado quando o job vira um job Git de verdade)
+pipeline-stage-view   # Stage View: tabela de estagios por build (evidencia visual da esteira)
 junit                 # step "junit" (publica os relatorios JUnit/Surefire/Cucumber)
 jacoco                # step "jacoco" (publica o relatorio de cobertura do backend)
 timestamper           # opcao "timestamps()" usada no Jenkinsfile

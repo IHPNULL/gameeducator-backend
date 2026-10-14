@@ -15,6 +15,7 @@
 | [`docs/arquitetura/README.md`](README.md) | Este registro: requisitos, matriz de ASRs, RPCs, os 6 desafios, C4 e síntese |
 | [`docs/adr/`](../adr/README.md) | ADR-B1-001 … ADR-B1-006 (decisões completas) |
 | [`docs/arquitetura/evidencias/`](evidencias/) | Saídas versionadas dos mini-labs (uma pasta por desafio) |
+| [`B1_Decisoes_Arquiteturais_e_Evidencias.docx`](B1_Decisoes_Arquiteturais_e_Evidencias.docx) | Relatório em Word: decisões, trade-offs, FURPS+ e prints da esteira Jenkins e do Prometheus/Grafana (`evidencias/prints/`) |
 | [`labs/`](../../labs/README.md) | Scripts dos mini-labs, stack Docker do lab, infra (RabbitMQ, Prometheus, Grafana) |
 
 **Convenção dos diagramas C4:** notação C4 (pessoa, container, componente, sistema externo) desenhada com `flowchart`
@@ -117,18 +118,18 @@ Um ASR é um RNF capaz de alterar **estrutura, comunicação, dados, implantaç�
 | ASR-03 | Complexidade operacional (S/+) | Equipe de 6 → nº de deployáveis do Core → 1 | Implantação, operação | D1 | ADR-B1-001 | C4 Container | ✅ |
 | ASR-04 | Modificabilidade das regras (S) | Mudar marcos de medalha → só configuração → 0 linhas de código | Estrutura | D2 | [ADR-B1-002](../adr/ADR-B1-002-hexagonal-na-gamificacao.md) | `TrocaDeAdaptadorNoContextoTest` | ✅ medido |
 | ASR-05 | Testabilidade do domínio (S) | Testar regra de XP/medalha → sem Spring/banco → ms | Estrutura | D2 | ADR-B1-002 | contrato JPA × memória | ✅ medido |
-| ASR-06 | Tolerância a falhas do fluxo essencial (R) | IA fora/lenta → Core responde com fallback/503 → p95 limitada pelo timeout, 0 erro no fluxo essencial | Comunicação | D3, D6 | [ADR-B1-003](../adr/ADR-B1-003-servico-python-de-ia.md) | lab D3 + Prometheus | ⏳ lab pendente |
+| ASR-06 | Tolerância a falhas do fluxo essencial (R) | IA fora/lenta → Core responde com fallback/503 → p95 limitada pelo timeout, 0 erro no fluxo essencial | Comunicação | D3, D6 | [ADR-B1-003](../adr/ADR-B1-003-servico-python-de-ia.md) | lab D3 + Prometheus | ✅ medido (D3) |
 | ASR-07 | Deploy independente (S) | Novo modelo → deploy só da IA → 0 deploy do Core | Implantação | D3, D6 | ADR-B1-003, ADR-B1-006 | repo + pipeline próprios | ✅ |
 | ASR-08 | Escala da carga variável de IA (P) | Pico no assistente → escala só a IA → Core não disputa recursos | Implantação | D3 | ADR-B1-003 | C4 Container (container próprio) | ✅ estrutural |
-| ASR-09 | Tolerância a falha de consumidor externo (R) | Notificação fora → conclusão da missão → 100% concluídas | Comunicação | D4 | [ADR-B1-004](../adr/ADR-B1-004-eventos-outbox-rabbitmq.md) | lab D4 síncrono × assíncrono | ⏳ lab pendente |
-| ASR-10 | Recuperabilidade (R) | Broker/consumidor fora → eventos retidos → 0 perdidos após voltar | Dados, operação | D4, D6 | ADR-B1-004 | lab D4 (outbox/fila drenam) | ⏳ lab pendente |
+| ASR-09 | Tolerância a falha de consumidor externo (R) | Notificação fora → conclusão da missão → 100% concluídas | Comunicação | D4 | [ADR-B1-004](../adr/ADR-B1-004-eventos-outbox-rabbitmq.md) | lab D4 síncrono × assíncrono | ✅ medido (D4, ver ressalva) |
+| ASR-10 | Recuperabilidade (R) | Broker/consumidor fora → eventos retidos → 0 perdidos após voltar | Dados, operação | D4, D6 | ADR-B1-004 | lab D4 (outbox/fila drenam) | ✅ medido (D4) |
 | ASR-11 | Consistência do resultado (F) | Resposta que conclui missão → XP/medalha/conclusão atômicos; notificação eventual | Dados | D4 | ADR-B1-004 | `AlunoConcluiMissaoTest` | ✅ |
-| ASR-12 | Tolerância à conectividade intermitente (R) | Queda no meio do lote + reentregas → 0 perdidos, 0 duplicados no Core | Comunicação, dados | D5 | [ADR-B1-005](../adr/ADR-B1-005-iot-mqtt.md) | lab D5 | ⏳ lab pendente |
-| ASR-13 | Eficiência de comunicação (P) | Evento de presença → bytes por evento → MQTT ≪ REST | Comunicação | D5 | ADR-B1-005 | simulador (bytes/evento) | ⏳ lab pendente |
-| ASR-14 | Segurança/isolamento da integração (+) | Dispositivo malicioso/bugado → não alcança o Core nem eventos internos → DLQ / acesso negado | Estrutura, operação | D5 | ADR-B1-005 | permissões por tópico + DLQ | ⏳ lab pendente |
-| ASR-15 | Observabilidade orientada a decisão (S/+) | Condição provocada → métrica do ASR muda → visível em ≤ 15 s | Operação | D6 | [ADR-B1-006](../adr/ADR-B1-006-cicd-e-observabilidade.md) | Prometheus/Grafana | ⏳ lab pendente |
-| ASR-16 | Deploy independente e seguro (S) | Commit quebra fronteira/contrato → pipeline bloqueia → 0 deploy quebrado | Implantação | D6 | ADR-B1-006 | Jenkinsfiles + ArchUnit | ⏳ lab pendente |
-| ASR-17 | Recuperabilidade operacional (R) | IA/broker/consumidor degradado → alerta → `for` ≤ 1 min | Operação | D6 | ADR-B1-006 | `alertas.yml` | ⏳ lab pendente |
+| ASR-12 | Tolerância à conectividade intermitente (R) | Queda no meio do lote + reentregas → 0 perdidos, 0 duplicados no Core | Comunicação, dados | D5 | [ADR-B1-005](../adr/ADR-B1-005-iot-mqtt.md) | lab D5 | ✅ medido (D5) |
+| ASR-13 | Eficiência de comunicação (P) | Evento de presença → bytes por evento → MQTT ≪ REST | Comunicação | D5 | ADR-B1-005 | simulador (bytes/evento) | ✅ medido (D5) |
+| ASR-14 | Segurança/isolamento da integração (+) | Dispositivo malicioso/bugado → não alcança o Core nem eventos internos → DLQ / acesso negado | Estrutura, operação | D5 | ADR-B1-005 | permissões por tópico + DLQ | ✅ medido (D5) |
+| ASR-15 | Observabilidade orientada a decisão (S/+) | Condição provocada → métrica do ASR muda → visível em ≤ 15 s | Operação | D6 | [ADR-B1-006](../adr/ADR-B1-006-cicd-e-observabilidade.md) | Prometheus/Grafana | ✅ medido (D6) |
+| ASR-16 | Deploy independente e seguro (S) | Commit quebra fronteira/contrato → pipeline bloqueia → 0 deploy quebrado | Implantação | D6 | ADR-B1-006 | Jenkinsfiles + ArchUnit | ✅ medido (Jenkins) |
+| ASR-17 | Recuperabilidade operacional (R) | IA/broker/consumidor degradado → alerta → `for` ≤ 1 min | Operação | D6 | ADR-B1-006 | `alertas.yml` | ✅ medido (D6) |
 
 RNFs analisados e **não** promovidos a ASR (por quê): interoperabilidade em D3/D5 (HTTP/JSON e MQTT, padrões de mercado, já resolvem); latência em D4 (tirar a notificação do caminho só ajuda); escalabilidade em D5 (dezenas de laboratórios); manutenibilidade em D3 (consequência do ASR-07).
 
@@ -322,7 +323,7 @@ Comunicação **síncrona HTTP/JSON**, e não fila: recomendação e resposta s�
 
 **7. Evidência (mini-lab).** *Hipótese:* com a IA fora ou lenta, o Core continua respondendo dentro do limite do timeout, e o disjuntor transforma falhas repetidas em respostas imediatas. Script: [`labs/desafio-3/executar.sh`](../../labs/desafio-3/executar.sh).
 
-> ⏳ **Execução pendente.** O mini-lab está implementado e versionado; o resultado será gravado em [`evidencias/desafio-3/resultado.md`](evidencias/desafio-3/) ao rodar `labs/desafio-3/executar.sh` com a stack do lab no ar. Cobertura automatizada já existente: ver testes citados no ADR.
+> ✅ **Executado em 2026-10-14** ([`resultado.md`](evidencias/desafio-3/resultado.md)). Com a IA lenta (3 s) o Core respondeu **200 com `origem=fallback` em 2019 ms** (timeout de 2 s); com a IA parada, as 3 primeiras chamadas caíram no fallback em ~313-322 ms (timeout de conexão de 300 ms) e, com o disjuntor aberto, em **14 ms**; o assistente respondeu **503 em 20 ms** com mensagem clara; o fluxo essencial (`POST /desafios/1/respostas`, `GET /ranking`) seguiu em **200 (24 ms e 12 ms)**; 15 s depois a IA voltou (`origem=ia`, 25 ms).
 
 **8. ADR + C4:** [ADR-B1-003](../adr/ADR-B1-003-servico-python-de-ia.md).
 
@@ -390,7 +391,7 @@ flowchart LR
 
 **7. Evidência (mini-lab).** *Hipótese:* com o consumidor de notificação fora, o modo síncrono derruba a conclusão e o assíncrono não. Com o **broker** fora, nada se perde: o outbox acumula e drena. Script: [`labs/desafio-4/executar.sh`](../../labs/desafio-4/executar.sh).
 
-> ⏳ **Execução pendente.** O mini-lab está implementado e versionado; o resultado será gravado em [`evidencias/desafio-4/resultado.md`](evidencias/desafio-4/) ao rodar `labs/desafio-4/executar.sh` com a stack do lab no ar. Cobertura automatizada já existente: ver testes citados no ADR.
+> ✅ **Executado em 2026-10-14** ([`resultado.md`](evidencias/desafio-4/resultado.md)). **Síncrono com consumidor fora:** HTTP 503 e conclusão desfeita (0 tentativas gravadas). **Assíncrono com consumidor fora:** HTTP 200 em 36 ms, evento retido na fila e entregue ao voltar (1 notificação única). **Assíncrono com RabbitMQ fora:** HTTP 200 em 10 ms, 1 evento pendente no outbox, reenviado pelo relay ao voltar o broker e recebido pelo consumidor. *Ressalva:* a linha de controle "síncrono com consumidor no ar" retornou 503 nesta execução, então o lab só sustenta a metade da falha do modo síncrono; o comportamento assíncrono foi confirmado.
 
 **8. ADR + C4:** [ADR-B1-004](../adr/ADR-B1-004-eventos-outbox-rabbitmq.md).
 
@@ -481,7 +482,7 @@ sequenceDiagram
 
 **7. Evidência (mini-lab).** *Hipótese:* com queda de conexão no meio do lote, reentregas duplicadas e um payload inválido, o Core registra cada evento único **exatamente uma vez** e isola o inválido. Script: [`labs/desafio-5/executar.sh`](../../labs/desafio-5/executar.sh).
 
-> ⏳ **Execução pendente.** O mini-lab está implementado e versionado; o resultado será gravado em [`evidencias/desafio-5/resultado.md`](evidencias/desafio-5/) ao rodar `labs/desafio-5/executar.sh` com a stack do lab no ar. Cobertura automatizada já existente: ver testes citados no ADR.
+> ✅ **Executado em 2026-10-14** ([`resultado.md`](evidencias/desafio-5/resultado.md)). Dispositivo simulado com queda no meio do lote (5 eventos em buffer offline), 3 reentregas duplicadas e 1 payload inválido: **20 eventos únicos gerados, 20 registrados no Core**; métricas `aceito=20`, `duplicado=3`, `invalido=1`; **+1 mensagem na DLQ** `core.iot.eventos.dlq`; os 3 tipos canônicos traduzidos pela ACL. Eficiência: **152 B por evento em MQTT** contra 260 B no mínimo em REST. Segurança: senha errada não conecta e a publicação em tópico interno com o usuário `dispositivo` derruba a conexão.
 
 **8. ADR + C4:** [ADR-B1-005](../adr/ADR-B1-005-iot-mqtt.md).
 
@@ -567,7 +568,7 @@ Métricas escolhidas (e não "tudo"): latência p95 e erros 5xx por rota (desemp
 
 **7. Evidência (mini-lab).** *Hipótese:* cada condição de degradação provocada aparece na métrica do ASR correspondente e dispara o alerta. Script: [`labs/desafio-6/executar.sh`](../../labs/desafio-6/executar.sh).
 
-> ⏳ **Execução pendente.** O mini-lab está implementado e versionado; o resultado será gravado em [`evidencias/desafio-6/resultado.md`](evidencias/desafio-6/) ao rodar `labs/desafio-6/executar.sh` com a stack do lab no ar. Cobertura automatizada já existente: ver testes citados no ADR.
+> ✅ **Executado em 2026-10-14** ([`resultado.md`](evidencias/desafio-6/resultado.md), painel em [`grafana-dashboard.png`](evidencias/desafio-6/grafana-dashboard.png)). Com **a IA parada**, `gameeducator_ia_disjuntor_aberto` foi a 1 e o alerta `IaEmModoDegradado` entrou em *firing*; com **o consumidor de notificação parado** (12 conclusões), a fila `notificacao.eventos` subiu a 14 e `NotificacoesAcumulando` disparou; ao voltar cada componente, a métrica e o alerta se normalizaram (fila a 0). Durante todo o teste o p95 de `/ranking` ficou entre 2,6 e 3,2 ms e o de `/recomendacoes` entre 8,2 e 17,7 ms. Esteira: os 4 jobs Jenkins (backend com estágio **PMD**, ia, frontend, automation) passaram; prints em [`evidencias/prints/`](evidencias/prints/) e relatório completo em [`B1_Decisoes_Arquiteturais_e_Evidencias.docx`](B1_Decisoes_Arquiteturais_e_Evidencias.docx).
 
 **8. ADR + C4:** [ADR-B1-006](../adr/ADR-B1-006-cicd-e-observabilidade.md).
 

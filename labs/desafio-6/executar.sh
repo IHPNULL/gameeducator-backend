@@ -28,11 +28,11 @@ print(', '.join(f\"{t['labels']['job']}={t['health']}\" for t in json.load(sys.s
 
 P95_REC='histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/api/cursos/{cursoId}/recomendacoes"}[1m])))'
 P95_RANK='histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri="/api/cursos/{cursoId}/ranking"}[1m])))'
-IA='sum by (resultado) (increase(gameeducator_ia_chamadas_total[1m]))'
+IA_CHAMADAS='sum by (resultado) (increase(gameeducator_ia_chamadas_total[1m]))'
 ERROS='sum(rate(http_server_requests_seconds_count{uri=~"/api/.*",status=~"5.."}[1m]))'
 
 linhas=()
-foto() { linhas+=("| $1 | $(promql "$P95_REC") s | $(promql "$P95_RANK") s | $(promql "$IA") | $(promql 'max(gameeducator_ia_disjuntor_aberto)') | $(promql 'max(gameeducator_outbox_pendentes)') | $(promql 'sum(rabbitmq_queue_messages_ready{queue="notificacao.eventos"})') | $(promql "$ERROS") | $(alertas) |"); }
+foto() { linhas+=("| $1 | $(promql "$P95_REC") s | $(promql "$P95_RANK") s | $(promql "$IA_CHAMADAS") | $(promql 'max(gameeducator_ia_disjuntor_aberto)') | $(promql 'max(gameeducator_outbox_pendentes)') | $(promql 'sum(rabbitmq_queue_messages_ready{queue="notificacao.eventos"})') | $(promql "$ERROS") | $(alertas) |"); }
 
 echo "linha de base (60 s de trafego)..."; trafego 60; foto "0. Linha de base"
 echo "IA parada (75 s)..."; $COMPOSE stop ia >/dev/null; trafego 75; foto "1. IA parada"
@@ -66,7 +66,7 @@ fi
   echo '```'
   echo "p95 recomendacoes : $P95_REC"
   echo "p95 ranking       : $P95_RANK"
-  echo "chamadas IA       : $IA"
+  echo "chamadas IA       : $IA_CHAMADAS"
   echo "erros 5xx         : $ERROS"
   echo '```'
   [ -n "$PNG" ] && { echo; echo "![Dashboard Grafana](grafana-dashboard.png)"; }

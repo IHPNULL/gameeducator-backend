@@ -61,7 +61,6 @@ pipeline {
                     sh "docker rm -f ${COMPOSE_PROJECT_NAME}-backend-test || true"
                     junit testResults: 'target/surefire-reports/*.xml', allowEmptyResults: true
                     archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
-                    fingerprint artifacts: 'target/*.jar', allowEmptyArchive: true
                     jacoco(
                         execPattern: 'target/jacoco.exec',
                         classPattern: 'target/classes',
