@@ -7,18 +7,19 @@ O frontend fica no repositório [gameeducator-frontend](https://github.com/IHPNU
 
 **Integrantes (Grupo 6):** Italo Haas Pascoli (190294) · Maria Eduarda Mota Zandonade (200953)
 
-## Setup local (3 repositórios lado a lado)
+## Setup local (4 repositórios lado a lado)
 
 ```
-gameeducator/                 # qualquer pasta
-├── gameeducator-backend      # API + Jenkins local (jenkins/)
-├── gameeducator-frontend     # app Vue
-└── gameeducator-automation   # suítes Cucumber (API + UI)
+gameeducator/                 # pasta raiz do projeto
+├── gameeducator-backend      # API REST Core + Jenkins local (jenkins/) + Mini-labs (labs/)
+├── gameeducator-frontend     # SPA Web (Vue 3, Vuetify, estacao de trabalho utilitaria anos 90)
+├── gameeducator-ia           # Servico de IA Python (FastAPI, recomendacao e assistente RAG)
+└── gameeducator-automation   # Suites E2E Cucumber (API REST-assured + UI Playwright)
 ```
 
 ```bash
 mkdir gameeducator && cd gameeducator
-for r in backend frontend automation; do git clone https://github.com/IHPNULL/gameeducator-$r.git; done
+for r in backend frontend ia automation; do git clone https://github.com/IHPNULL/gameeducator-$r.git; done
 ```
 
 ## Arquitetura (B1)
@@ -51,9 +52,9 @@ docker compose -f docker/docker-compose.yml up --build    # Postgres + backend (
 
 As suítes Cucumber (API e UI) ficam no repositório [gameeducator-automation](https://github.com/IHPNULL/gameeducator-automation). Este repositório fornece o perfil Spring `automation` (`AutomationSeedData`) que elas usam.
 
-## CI
+## CI / CD
 
-`Jenkinsfile` builda a imagem, roda os testes dentro dela, valida a integração com Postgres. Jenkins local (com os jobs backend, frontend, automação e IA): `docker compose -f jenkins/docker-compose.yml up -d --build` e abra http://127.0.0.1:8090 (admin/admin). Veja [`jenkins/README.md`](jenkins/README.md).
+`Jenkinsfile`: build multi-stage, testes unitários e de integração (161 testes + ArchUnit), análise estática com PMD, validação com Postgres e estágio de Fake Deploy para homologação simulada. Jenkins local (com os 4 jobs encadeados: backend, frontend, automação e IA): `docker compose -f jenkins/docker-compose.yml up -d --build` e abra http://127.0.0.1:8090 (admin/admin). Veja [`jenkins/README.md`](jenkins/README.md).
 
 O planejamento ATDD (BDD → TDD RED/GREEN/BLUE) e a rastreabilidade cenário → service → teste estão em
 [`BACKLOG.md`](BACKLOG.md).
