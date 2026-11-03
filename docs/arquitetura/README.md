@@ -8,7 +8,7 @@
 
 **Repositórios:** [`gameeducator-backend`](https://github.com/IHPNULL/gameeducator-backend) (Core + este registro + labs) ·
 [`gameeducator-frontend`](https://github.com/IHPNULL/gameeducator-frontend) · [`gameeducator-automation`](https://github.com/IHPNULL/gameeducator-automation) ·
-`gameeducator-ia` (novo no B1, serviço Python)
+[`gameeducator-ia`](https://github.com/IHPNULL/gameeducator-ia) (novo no B1, serviço Python)
 
 | Onde | O quê |
 |---|---|
@@ -16,6 +16,7 @@
 | [`docs/adr/`](../adr/README.md) | ADR-B1-001 … ADR-B1-006 (decisões completas) |
 | [`docs/arquitetura/evidencias/`](evidencias/) | Saídas versionadas dos mini-labs (uma pasta por desafio) |
 | [`B1_Decisoes_Arquiteturais_e_Evidencias.docx`](B1_Decisoes_Arquiteturais_e_Evidencias.docx) | Relatório em Word: decisões, trade-offs, FURPS+ e prints da esteira Jenkins e do Prometheus/Grafana (`evidencias/prints/`) |
+| [`Exercicio_B1_Architecture_Lab_Resolvido_Grupo6.docx`](Exercicio_B1_Architecture_Lab_Resolvido_Grupo6.docx) | O enunciado do B1 preenchido: os 8 itens de cada desafio, matriz de ASRs, C4 renderizados e entrega final |
 | [`labs/`](../../labs/README.md) | Scripts dos mini-labs, stack Docker do lab, infra (RabbitMQ, Prometheus, Grafana) |
 
 **Convenção dos diagramas C4:** notação C4 (pessoa, container, componente, sistema externo) desenhada com `flowchart`
@@ -121,7 +122,7 @@ Um ASR é um RNF capaz de alterar **estrutura, comunicação, dados, implantaç�
 | ASR-06 | Tolerância a falhas do fluxo essencial (R) | IA fora/lenta → Core responde com fallback/503 → p95 limitada pelo timeout, 0 erro no fluxo essencial | Comunicação | D3, D6 | [ADR-B1-003](../adr/ADR-B1-003-servico-python-de-ia.md) | lab D3 + Prometheus | ✅ medido (D3) |
 | ASR-07 | Deploy independente (S) | Novo modelo → deploy só da IA → 0 deploy do Core | Implantação | D3, D6 | ADR-B1-003, ADR-B1-006 | repo + pipeline próprios | ✅ |
 | ASR-08 | Escala da carga variável de IA (P) | Pico no assistente → escala só a IA → Core não disputa recursos | Implantação | D3 | ADR-B1-003 | C4 Container (container próprio) | ✅ estrutural |
-| ASR-09 | Tolerância a falha de consumidor externo (R) | Notificação fora → conclusão da missão → 100% concluídas | Comunicação | D4 | [ADR-B1-004](../adr/ADR-B1-004-eventos-outbox-rabbitmq.md) | lab D4 síncrono × assíncrono | ✅ medido (D4, ver ressalva) |
+| ASR-09 | Tolerância a falha de consumidor externo (R) | Notificação fora → conclusão da missão → 100% concluídas | Comunicação | D4 | [ADR-B1-004](../adr/ADR-B1-004-eventos-outbox-rabbitmq.md) | lab D4 síncrono × assíncrono | ✅ medido (D4) |
 | ASR-10 | Recuperabilidade (R) | Broker/consumidor fora → eventos retidos → 0 perdidos após voltar | Dados, operação | D4, D6 | ADR-B1-004 | lab D4 (outbox/fila drenam) | ✅ medido (D4) |
 | ASR-11 | Consistência do resultado (F) | Resposta que conclui missão → XP/medalha/conclusão atômicos; notificação eventual | Dados | D4 | ADR-B1-004 | `AlunoConcluiMissaoTest` | ✅ |
 | ASR-12 | Tolerância à conectividade intermitente (R) | Queda no meio do lote + reentregas → 0 perdidos, 0 duplicados no Core | Comunicação, dados | D5 | [ADR-B1-005](../adr/ADR-B1-005-iot-mqtt.md) | lab D5 | ✅ medido (D5) |
@@ -391,7 +392,7 @@ flowchart LR
 
 **7. Evidência (mini-lab).** *Hipótese:* com o consumidor de notificação fora, o modo síncrono derruba a conclusão e o assíncrono não. Com o **broker** fora, nada se perde: o outbox acumula e drena. Script: [`labs/desafio-4/executar.sh`](../../labs/desafio-4/executar.sh).
 
-> ✅ **Executado em 2026-10-14** ([`resultado.md`](evidencias/desafio-4/resultado.md)). **Síncrono com consumidor fora:** HTTP 503 e conclusão desfeita (0 tentativas gravadas). **Assíncrono com consumidor fora:** HTTP 200 em 36 ms, evento retido na fila e entregue ao voltar (1 notificação única). **Assíncrono com RabbitMQ fora:** HTTP 200 em 10 ms, 1 evento pendente no outbox, reenviado pelo relay ao voltar o broker e recebido pelo consumidor. *Ressalva:* a linha de controle "síncrono com consumidor no ar" retornou 503 nesta execução, então o lab só sustenta a metade da falha do modo síncrono; o comportamento assíncrono foi confirmado.
+> ✅ **Executado em 2026-10-20** ([`resultado.md`](evidencias/desafio-4/resultado.md)). **Síncrono com consumidor fora:** HTTP 503 e conclusão desfeita (0 tentativas gravadas). **Síncrono com consumidor no ar (controle):** HTTP 200 em 81 ms, missão concluída e 1 notificação recebida — o modo síncrono só funciona se o consumidor estiver no ar. **Assíncrono com consumidor fora:** HTTP 200 em 66 ms, evento entregue quando o consumidor voltou (1 notificação única). **Assíncrono com RabbitMQ fora:** HTTP 200 em 40 ms, 1 evento pendente no outbox, reenviado pelo relay ao voltar o broker e recebido pelo consumidor. *Nota de método:* na execução de 2026-10-14 a linha de controle síncrona deu 503 porque o script repetia a chamada menos de 10 s depois de religar o consumidor, e a JVM ainda guardava a falha de DNS do container parado (`networkaddress.cache.negative.ttl` = 10 s). O script passou a esperar 12 s antes do controle.
 
 **8. ADR + C4:** [ADR-B1-004](../adr/ADR-B1-004-eventos-outbox-rabbitmq.md).
 

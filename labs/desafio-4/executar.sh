@@ -24,6 +24,9 @@ read -r M D <<<"$(nova_missao sincrono)"
 r=$(chamar POST "$CORE/api/desafios/$D/respostas" '{"indiceResposta":1}')
 registrar "A. Sincrono (REST), notificacao FORA" "HTTP ${r% *} em ${r#* } ms - $(json "d.get('mensagem', d)")" "tentativas gravadas: $(tentativas "$D")" "a conclusao FALHOU e foi desfeita (rollback)"
 $COMPOSE start notificacao >/dev/null; esperar "$NOTIF/saude"
+# Com o container parado o DNS do Docker respondeu NXDOMAIN e a JVM guarda essa falha por
+# networkaddress.cache.negative.ttl (10 s por padrao); sem esperar, o Core ainda "nao acha" o consumidor.
+sleep 12
 antes=$(notificacoes)
 r=$(chamar POST "$CORE/api/desafios/$D/respostas" '{"indiceResposta":1}')
 registrar "A. Sincrono (REST), notificacao NO AR" "HTTP ${r% *} em ${r#* } ms - missaoConcluida=$(json "d['missaoConcluida']")" "tentativas: $(tentativas "$D"); notificacoes: $antes -> $(notificacoes)" "funciona, mas so com o consumidor no ar"
