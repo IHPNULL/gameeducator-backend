@@ -22,4 +22,5 @@ HELP.md
 .vscode/
 
 jenkins/jenkins_home/
+jenkins/.env
 docker/.env
