@@ -133,6 +133,20 @@ pipeline {
             }
         }
 
+        stage('Deploy (Fake / Simulado)') {
+            steps {
+                echo "=== EXECUTANDO FAKE DEPLOY (BACKEND) ==="
+                echo "Ambiente alvo: Staging / Local Simulado"
+                echo "Artefato: gameeducator-backend:${IMAGE_TAG}"
+                sh """
+                    echo '[Fake Deploy] Simulando deploy do container backend...'
+                    echo '[Fake Deploy] Enviando imagem gameeducator-backend:${IMAGE_TAG} para ambiente de homologacao...'
+                    echo '[Fake Deploy] Verificando saude do servico simulado: UP (200 OK)'
+                    echo '[Fake Deploy] Fake deploy do backend concluido com SUCESSO!'
+                """
+            }
+        }
+
         stage('Publish') {
             when {
                 branch 'main'

@@ -54,7 +54,7 @@ jobNames.each { jobName ->
         // dispara depois que o backend ou o frontend termina com sucesso
         def existente = job.triggers.values().find { it instanceof ReverseBuildTrigger }
         if (existente != null) {
-            job.removeTrigger(existente.descriptor)
+            try { job.removeTrigger(existente) } catch (Exception e) { job.removeTrigger(existente.descriptor) }
         }
         job.addTrigger(new ReverseBuildTrigger('gameeducator-backend,gameeducator-frontend', Result.SUCCESS))
     }

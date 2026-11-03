@@ -16,7 +16,7 @@ FROM eclipse-temurin:21-jdk AS deps
 WORKDIR /app
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
-RUN chmod +x mvnw && ./mvnw -B dependency:go-offline
+RUN chmod +x mvnw && ./mvnw -B dependency:resolve
 
 # ---- Test ----
 FROM deps AS test

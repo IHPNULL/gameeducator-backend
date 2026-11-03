@@ -20,6 +20,10 @@ services:
     privileged: true # obrigatorio para Docker-in-Docker; container efemero, sem porta exposta ao host
     environment:
       DOCKER_TLS_CERTDIR: /certs
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    command: ["--dns", "8.8.8.8", "--dns", "1.1.1.1"]
     volumes:
       - jenkins-docker-certs:/certs/client
       - dind-storage:/var/lib/docker
