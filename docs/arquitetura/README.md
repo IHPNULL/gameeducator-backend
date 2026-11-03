@@ -57,7 +57,7 @@ usa outros nomes para os mesmos conceitos:
 | Cursos / atividades | Cursos → Missões → Desafios |
 | "Concluir curso/atividade" | Concluir a **missão** (acertar todos os desafios), detectado no B1 |
 
-As decisões da AC1 (ADR-001 a ADR-019) continuam válidas, exceto onde um ADR-B1 diz que as substitui.
+As decisões da AC1 (ADR-001 a ADR-019) continuam válidas, exceto onde um ADR-B1 diz que as substitui. A baseline da AC1 está registrada no commit `8d062b7` (estado do repositório imediatamente anterior ao início das mudanças do B1, introduzidas a partir de `8073a3a`).
 
 ## 2. Requisitos
 
