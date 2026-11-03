@@ -19,6 +19,8 @@
 | [`Exercicio_B1_Architecture_Lab_Resolvido_Grupo6.docx`](Exercicio_B1_Architecture_Lab_Resolvido_Grupo6.docx) | O enunciado do B1 preenchido: os 8 itens de cada desafio, matriz de ASRs, C4 renderizados e entrega final |
 | [`labs/`](../../labs/README.md) | Scripts dos mini-labs, stack Docker do lab, infra (RabbitMQ, Prometheus, Grafana) |
 
+> **Nota metodológica sobre evidências:** Prints de tela são apenas material de apoio visual. A comprovação e prova objetiva de cada hipótese arquitetural reside estritamente nos arquivos `resultado.md` versionados em `evidencias/`, nas saídas reproduzíveis dos scripts em `labs/` e nos testes automatizados (`./mvnw clean verify`).
+
 **Convenção dos diagramas C4:** notação C4 (pessoa, container, componente, sistema externo) desenhada com `flowchart`
 Mermaid para um layout legível no GitHub. 🟩 verde = elemento novo ou alterado no desafio · 🟦 azul = existente ·
 ⬜ cinza = sistema externo · borda tracejada = fronteira de sistema/container/módulo.
@@ -40,6 +42,7 @@ Mermaid para um layout legível no GitHub. 🟩 verde = elemento novo ou alterad
 11. [C4 final](#11-c4-final)
 12. [Síntese: o que vai para a PoC da AF](#12-síntese-o-que-vai-para-a-poc-da-af)
 13. [Como reproduzir as evidências](#13-como-reproduzir-as-evidências)
+14. [Entrega e Identificação da Equipe](#14-entrega-e-identificação-da-equipe)
 
 ---
 
@@ -695,3 +698,16 @@ labs/desafio-6/executar.sh
 # Grafana: http://localhost:3000 (dashboard "GameEducator B1 - Evidencias arquiteturais")
 docker compose -f labs/docker-compose.yml down -v
 ```
+
+## 14. Entrega e Identificação da Equipe
+
+- **Equipe (Grupo 6):**
+  - Italo Haas Pascoli (RA: 190294)
+  - Maria Eduarda Mota Zandonade (RA: 200953)
+- **Repositórios do Projeto:**
+  - Core / Backend: [https://github.com/IHPNULL/gameeducator-backend](https://github.com/IHPNULL/gameeducator-backend)
+  - Frontend SPA: [https://github.com/IHPNULL/gameeducator-frontend](https://github.com/IHPNULL/gameeducator-frontend)
+  - Serviço de IA: [https://github.com/IHPNULL/gameeducator-ia](https://github.com/IHPNULL/gameeducator-ia)
+  - Automação / E2E: [https://github.com/IHPNULL/gameeducator-automation](https://github.com/IHPNULL/gameeducator-automation)
+- **Branch do Lab B1:** `b1-architecture-lab` (sincronizada com `main` em todos os repositórios).
+- **Conferência Final:** Todos os 6 desafios, 6 ADRs, evidências reproduzidas, matriz de 17 ASRs e pipelines CI/CD com testes unitários, BDD e de arquitetura validados.
