@@ -1,8 +1,8 @@
-# CLAUDE.md
+# Guia de Desenvolvimento — Backend
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Este documento reúne instruções de desenvolvimento, arquitetura, comandos de build, testes e convenções do backend do GameEducator.
 
-GameEducator backend: Java 21, Spring Boot 4, Spring Data JPA, H2 (default) / PostgreSQL. The Vue frontend lives in the separate `gameeducator-frontend` repo. Code, comments and identifiers are in Portuguese (no accents in code) — match that. ATDD project: BDD scenarios → TDD RED/GREEN/BLUE; `BACKLOG.md` maps each scenario to its service and test class.
+Backend do GameEducator: Java 21, Spring Boot 4, Spring Data JPA, H2 (padrão em memória) e PostgreSQL (produção). O frontend em Vue 3 fica no repositório separado `gameeducator-frontend`. Código, comentários e identificadores em português (sem acentos no código). Projeto orientado a ATDD: cenários BDD orientam o ciclo TDD RED/GREEN/BLUE; o arquivo `BACKLOG.md` mapeia cada cenário ao respectivo service e classe de teste.
 
 ## Commands
 

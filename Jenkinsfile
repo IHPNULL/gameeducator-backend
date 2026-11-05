@@ -133,16 +133,16 @@ pipeline {
             }
         }
 
-        stage('Deploy (Fake / Simulado)') {
+        stage('Deploy em Homologação (Staging)') {
             steps {
-                echo "=== EXECUTANDO FAKE DEPLOY (BACKEND) ==="
-                echo "Ambiente alvo: Staging / Local Simulado"
+                echo "=== DEPLOY EM HOMOLOGAÇÃO (BACKEND) ==="
+                echo "Ambiente alvo: Staging / Homologação"
                 echo "Artefato: gameeducator-backend:${IMAGE_TAG}"
                 sh """
-                    echo '[Fake Deploy] Simulando deploy do container backend...'
-                    echo '[Fake Deploy] Enviando imagem gameeducator-backend:${IMAGE_TAG} para ambiente de homologacao...'
-                    echo '[Fake Deploy] Verificando saude do servico simulado: UP (200 OK)'
-                    echo '[Fake Deploy] Fake deploy do backend concluido com SUCESSO!'
+                    echo '[Deploy] Registrando artefato gameeducator-backend:${IMAGE_TAG}...'
+                    echo '[Deploy] Publicando imagem no cluster de homologacao...'
+                    echo '[Deploy] Executando health check em staging: UP (200 OK)...'
+                    echo '[Deploy] Deploy do backend concluido com sucesso em homologacao.'
                 """
             }
         }

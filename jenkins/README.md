@@ -11,12 +11,13 @@ containers, e nao publica nada na internet.
 
 ## 1. Subir o Jenkins
 
-Clone os 3 repositorios lado a lado (a pasta pai e montada no Jenkins):
+Clone os 4 repositorios lado a lado (a pasta pai e montada no Jenkins):
 
 ```
 gameeducator/
 ├── gameeducator-backend      # este repo (contem jenkins/)
 ├── gameeducator-frontend
+├── gameeducator-ia
 └── gameeducator-automation
 ```
 
