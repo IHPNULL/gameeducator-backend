@@ -1,0 +1,122 @@
+# GameEducator — stack completa da AF. Na raiz deste repositorio:
+#
+#   docker compose up --build
+#
+# Abra http://localhost:8080 (API Gateway: SPA, /api, /swagger-ui, /ia/saude, /actuator/gateway/routes).
+# Unicas portas publicadas: 8080 gateway | 15672 RabbitMQ UI | 9090 Prometheus | 3000 Grafana.
+# Core, IA, banco e notificacao ficam so na rede interna: todo acesso externo passa pelo gateway.
+#
+# Polyrepo (ADR-001): frontend e IA sao buildados direto dos repositorios no GitHub, entao basta clonar
+# este repo. Para buildar dos clones locais (desenvolvimento), copie .env.example para .env.
+# Usa as portas 8080/5432 dos outros compose: nao suba dois stacks ao mesmo tempo.
+name: gameeducator
+
+services:
+  gateway:
+    image: gameeducator-gateway:af
+    build:
+      context: ./gateway
+    environment:
+      CORE_URL: http://backend:8080
+      IA_URL: http://ia:8000
+      FRONTEND_URL: http://frontend:80
+    depends_on: [backend, frontend, ia]
+    ports: ["${GATEWAY_PORT:-8080}:8080"]
+
+  frontend:
+    image: gameeducator-frontend:af
+    build:
+      context: ${FRONTEND_CONTEXT:-https://github.com/IHPNULL/gameeducator-frontend.git#main}
+      dockerfile: docker/frontend.Dockerfile
+      target: runtime
+    depends_on: [backend]   # o nginx.conf da SPA resolve o host "backend" ao subir
+
+  backend:
+    image: gameeducator-backend:af
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: postgres,dev
+      DB_HOST: db
+      DB_NAME: gameeducator
+      DB_USER: gameeducator
+      DB_PASSWORD: gameeducator
+      IA_URL: http://ia:8000
+      MENSAGERIA_HABILITADA: "true"
+      EVENTOS_RELAY: "true"
+      EVENTOS_MODO: assincrono
+      NOTIFICACAO_URL: http://notificacao:8085
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      db: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      # sem depends_on da IA: o Core sobe e opera com a IA fora (ADR-B1-003)
+
+  ia:
+    image: gameeducator-ia:af
+    build:
+      context: ${IA_CONTEXT:-https://github.com/IHPNULL/gameeducator-ia.git#main}
+      dockerfile: docker/ia.Dockerfile
+      target: runtime
+
+  notificacao:
+    image: gameeducator-notificacao:af
+    build: ./labs/notificacao-consumidor
+    environment:
+      RABBITMQ_URL: amqp://gameeducator:gameeducator@rabbitmq:5672/%2F
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gameeducator
+      POSTGRES_USER: gameeducator
+      POSTGRES_PASSWORD: gameeducator
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gameeducator -d gameeducator"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    hostname: rabbitmq
+    volumes:
+      - ./labs/infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./labs/infra/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - ./labs/infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports: ["15672:15672"]
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity && rabbitmq-diagnostics -q check_running"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    volumes:
+      - ./labs/infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./labs/infra/prometheus/alertas.yml:/etc/prometheus/alertas.yml:ro
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/gameeducator-b1.json
+    volumes:
+      - ./labs/infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./labs/infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  db-data:
+  rabbitmq-data:

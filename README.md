@@ -7,6 +7,30 @@ O frontend fica no repositório [gameeducator-frontend](https://github.com/IHPNU
 
 **Integrantes (Grupo 6):** Italo Haas Pascoli (190294) · Maria Eduarda Mota Zandonade (200953)
 
+## Executar a plataforma completa (AF)
+
+Na raiz deste repositório, um único comando sobe tudo:
+
+```bash
+docker compose up --build
+```
+
+Abra **http://localhost:8080**. O API Gateway (Spring Cloud Gateway, pasta [`gateway/`](gateway/)) é a única porta de entrada:
+
+| Caminho no gateway | Destino | Container |
+|---|---|---|
+| `/` (e qualquer rota da SPA) | Frontend Vue 3 servido pelo Nginx | `frontend` |
+| `/api/**` | API REST do Core | `backend` |
+| `/swagger-ui.html`, `/v3/api-docs` | Documentação OpenAPI do Core | `backend` |
+| `/ia/saude` | Saúde do serviço de IA | `ia` (FastAPI) |
+| `/actuator/gateway/routes` | Rotas ativas do gateway | `gateway` |
+
+O gateway também carimba um `X-Correlation-Id` em toda requisição e o devolve na resposta. Core, IA, PostgreSQL e o consumidor de notificação não publicam portas: ficam só na rede interna do compose. As outras portas publicadas são 15672 (RabbitMQ UI, `gameeducator`/`gameeducator`), 9090 (Prometheus) e 3000 (Grafana).
+
+- O frontend e a IA são buildados direto do branch `main` dos repositórios no GitHub, então basta clonar este repositório. Para buildar a partir dos clones locais, copie `.env.example` para `.env`.
+- Se a porta 8080 estiver ocupada, use `GATEWAY_PORT=8088 docker compose up --build`.
+- Para parar e apagar os dados: `docker compose down -v`.
+
 ## Setup local (4 repositórios lado a lado)
 
 ```

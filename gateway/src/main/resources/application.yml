@@ -1,0 +1,54 @@
+# API Gateway do GameEducator (AF). Unico container com porta publicada no docker-compose.yml da raiz.
+# Os destinos vem de variaveis de ambiente para rodar tanto no compose quanto localmente.
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gameeducator-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 2000
+            response-timeout: 30s
+          routes:
+            # API de negocio (Core Spring Boot)
+            - id: core-api
+              uri: ${CORE_URL:http://localhost:8081}
+              order: 0
+              predicates:
+                - Path=/api/**
+            # Documentacao OpenAPI do Core
+            - id: core-openapi
+              uri: ${CORE_URL:http://localhost:8081}
+              order: 0
+              predicates:
+                - Path=/v3/api-docs/**,/swagger-ui/**,/swagger-ui.html
+            # Saude do servico de IA (FastAPI). O negocio fala com a IA so via Core.
+            - id: ia-saude
+              uri: ${IA_URL:http://localhost:8000}
+              order: 0
+              predicates:
+                - Path=/ia/saude
+              filters:
+                - StripPrefix=1
+            # SPA (Vue + Nginx): todo o resto
+            - id: frontend
+              uri: ${FRONTEND_URL:http://localhost:5173}
+              order: 100
+              predicates:
+                - Path=/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,prometheus
+  endpoint:
+    gateway:
+      access: read-only
+  metrics:
+    tags:
+      application: gameeducator-gateway
