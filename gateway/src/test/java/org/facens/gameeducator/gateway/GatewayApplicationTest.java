@@ -19,7 +19,7 @@ class GatewayApplicationTest {
     @Test
     void carregaAsRotasDoCoreDaIaEDaSpa() {
         List<String> ids = rotas.getRoutes().map(Route::getId).collectList().block();
-        assertThat(ids).containsExactlyInAnyOrder("core-api", "core-openapi", "ia-saude", "frontend");
+        assertThat(ids).containsExactlyInAnyOrder("core-agente", "core-api", "core-openapi", "ia-saude", "frontend");
     }
 
     @Test
@@ -30,8 +30,9 @@ class GatewayApplicationTest {
     }
 
     @Test
-    void spaEhAUltimaRotaParaNaoEngolirAApi() {
+    void agenteVemAntesDaApiESpaPorUltimo() {
         List<String> ids = rotas.getRoutes().map(Route::getId).collectList().block();
+        assertThat(ids).first().isEqualTo("core-agente");
         assertThat(ids).last().isEqualTo("frontend");
     }
 }

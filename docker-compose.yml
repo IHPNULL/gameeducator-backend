@@ -6,6 +6,10 @@
 # Unicas portas publicadas: 8080 gateway | 15672 RabbitMQ UI | 9090 Prometheus | 3000 Grafana.
 # Core, IA, banco e notificacao ficam so na rede interna: todo acesso externo passa pelo gateway.
 #
+# Agentes de IA (RF04): o container ollama-modelo baixa o modelo (~2 GB) na 1a vez; ate terminar, o agente
+# responde 503. Sem GPU no Docker do Mac o modelo roda na CPU; para usar o Ollama do host (mais rapido),
+# defina OLLAMA_URL=http://host.docker.internal:11434 no .env.
+#
 # Polyrepo (ADR-001): frontend e IA sao buildados direto dos repositorios no GitHub, entao basta clonar
 # este repo. Para buildar dos clones locais (desenvolvimento), copie .env.example para .env.
 # Usa as portas 8080/5432 dos outros compose: nao suba dois stacks ao mesmo tempo.
@@ -48,10 +52,14 @@ services:
       EVENTOS_MODO: assincrono
       NOTIFICACAO_URL: http://notificacao:8085
       RABBITMQ_HOST: rabbitmq
+      AGENTE_HABILITADO: "true"
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_MODELO: ${OLLAMA_MODELO:-qwen2.5:3b}
     depends_on:
       db: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
-      # sem depends_on da IA: o Core sobe e opera com a IA fora (ADR-B1-003)
+      # sem depends_on da IA nem do Ollama: o Core sobe e opera com eles fora (ADR-B1-003);
+      # enquanto o modelo baixa, o agente (RF04) responde 503 e o resto funciona
 
   ia:
     image: gameeducator-ia:af
@@ -59,6 +67,27 @@ services:
       context: ${IA_CONTEXT:-https://github.com/IHPNULL/gameeducator-ia.git#main}
       dockerfile: docker/ia.Dockerfile
       target: runtime
+
+  # LLM local dos agentes (RF04): sem chave de API e sem custo por chamada (RNF05).
+  ollama:
+    image: ollama/ollama:0.40.16
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Baixa o modelo uma vez (fica no volume ollama-data) e termina.
+  ollama-modelo:
+    image: ollama/ollama:0.40.16
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "${OLLAMA_MODELO:-qwen2.5:3b}"]
+    depends_on:
+      ollama: { condition: service_healthy }
+    restart: "no"
 
   notificacao:
     image: gameeducator-notificacao:af
@@ -120,3 +149,4 @@ services:
 volumes:
   db-data:
   rabbitmq-data:
+  ollama-data:
