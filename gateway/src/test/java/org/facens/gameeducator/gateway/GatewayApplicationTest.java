@@ -23,6 +23,13 @@ class GatewayApplicationTest {
     }
 
     @Test
+    void todaRotaPreservaOHostOriginalParaOCorsDoCore() {
+        List<Route> todas = rotas.getRoutes().collectList().block();
+        assertThat(todas).allSatisfy(rota -> assertThat(rota.getFilters())
+                .anySatisfy(filtro -> assertThat(filtro.toString()).contains("PreserveHostHeader")));
+    }
+
+    @Test
     void spaEhAUltimaRotaParaNaoEngolirAApi() {
         List<String> ids = rotas.getRoutes().map(Route::getId).collectList().block();
         assertThat(ids).last().isEqualTo("frontend");
