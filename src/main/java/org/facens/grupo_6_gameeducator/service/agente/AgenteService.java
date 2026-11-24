@@ -1,7 +1,9 @@
 package org.facens.grupo_6_gameeducator.service.agente;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.facens.grupo_6_gameeducator.domain.AcaoDoAgente;
 import org.facens.grupo_6_gameeducator.domain.Curso;
 import org.facens.grupo_6_gameeducator.domain.Usuario;
@@ -69,21 +71,66 @@ public class AgenteService {
     public record RespostaDoAgente(String agente, String resposta, List<AcaoDoAgente> acoesPendentes) {
     }
 
-    private record Participante(boolean aluno, String nome, String curso) {
+    record Participante(boolean aluno, String nome, String curso) {
     }
 
     public RespostaDoAgente conversar(Long usuarioId, Long cursoId, String mensagem) {
         Participante quem = leitura.execute(status -> identificar(usuarioId, cursoId));
         String agente = quem.aluno() ? ORIENTACAO : ACOMPANHAMENTO;
-        PedidoAoAgente pedido = new PedidoAoAgente("usuario-" + usuarioId + "-curso-" + cursoId,
-                instrucoes(quem), mensagem, List.of(ferramentas(quem, usuarioId, cursoId)));
-        String resposta;
+        String conversaId = "usuario-" + usuarioId + "-curso-" + cursoId;
+        FerramentasDoAgente ferramentas = ferramentas(quem, usuarioId, cursoId);
+        String instrucoes = instrucoes(quem);
+        String resposta = conduzir(new PedidoAoAgente(conversaId, instrucoes, mensagem, List.of(ferramentas)));
+        if (faltouProposta(ferramentas, mensagem, resposta)) {
+            // Guarda de saida: o modelo prometeu (ou foi pedido) uma proposta sem chamar a ferramenta. Uma
+            // segunda chance com a correcao explicita; se falhar de novo, a resposta inventada nao chega ao usuario.
+            resposta = conduzir(new PedidoAoAgente(conversaId, instrucoes, correcao(quem), List.of(ferramentas)));
+            if (faltouProposta(ferramentas, mensagem, resposta)) {
+                resposta = semProposta(quem);
+            }
+        }
+        return new RespostaDoAgente(agente, resposta, acoes.pendentes(usuarioId, cursoId));
+    }
+
+    private String conduzir(PedidoAoAgente pedido) {
         try {
-            resposta = orquestrador.conduzir(pedido);
+            return orquestrador.conduzir(pedido);
         } catch (IaIndisponivelException e) {
             throw new ServicoIndisponivelException(MENSAGEM_INDISPONIVEL);
         }
-        return new RespostaDoAgente(agente, resposta, acoes.pendentes(usuarioId, cursoId));
+    }
+
+    /** Verbos de pedido de acao ("proponha", "crie", "envie"...). "o que e uma meta?" nao conta. */
+    private static final Pattern PEDE_ACAO = Pattern.compile(
+            "\\b(propo\\w*|crie|criar|cria|envie|enviar|envia|mande|mandar|manda|sugira|sugerir|marque|marcar"
+                    + "|quero uma meta|pode propor)\\b", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    /** Frases com que o modelo afirma ter registrado algo. */
+    private static final Pattern ALEGA_PROPOSTA = Pattern.compile(
+            "proposta\\s*#\\s*\\d+|aguardando\\s+aprova", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
+    static boolean faltouProposta(FerramentasDoAgente ferramentas, String mensagem, String resposta) {
+        boolean alegaSemRegistro = !ferramentas.propostaRegistrada()
+                && ALEGA_PROPOSTA.matcher(semAcentos(resposta)).find();
+        boolean pediuSemChamar = !ferramentas.propostaTentada() && PEDE_ACAO.matcher(semAcentos(mensagem)).find();
+        return alegaSemRegistro || pediuSemChamar;
+    }
+
+    private static String semAcentos(String texto) {
+        return Normalizer.normalize(texto == null ? "" : texto, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+    }
+
+    static String correcao(Participante quem) {
+        return "ATENCAO: nenhuma proposta foi registrada, porque voce nao chamou a ferramenta "
+                + (quem.aluno() ? "proporMetaDeEstudo" : "proporLembreteAoAluno")
+                + ". Chame-a AGORA com os dados do meu pedido anterior (consulte as outras ferramentas se precisar) "
+                + "e responda com o numero da proposta que ela devolver.";
+    }
+
+    static String semProposta(Participante quem) {
+        return "Ainda nao registrei nenhuma proposta. Peca de novo de forma direta, por exemplo: "
+                + (quem.aluno()
+                        ? "\"proponha uma meta para a Missao 1 em 7 dias\"."
+                        : "\"proponha um lembrete para o Bruno revisar a Missao 1\".");
     }
 
     /** Quem pode conversar: aluno matriculado no curso ou o professor responsavel por ele. */
@@ -101,7 +148,7 @@ public class AgenteService {
         return new Participante(usuario.isAluno(), usuario.getNome(), curso.getTitulo());
     }
 
-    private Object ferramentas(Participante quem, Long usuarioId, Long cursoId) {
+    private FerramentasDoAgente ferramentas(Participante quem, Long usuarioId, Long cursoId) {
         return quem.aluno()
                 ? new FerramentasDeOrientacao(usuarioId, cursoId, gamificacao, recomendacoes, assistente, acoes)
                 : new FerramentasDeAcompanhamento(usuarioId, cursoId, jogo, gamificacao, acoes);

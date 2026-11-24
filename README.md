@@ -255,6 +255,11 @@ sequenceDiagram
     L-->>C: chamar proporLembreteAoAluno("Eduardo", "...")
     C->>A: grava AcaoDoAgente PENDENTE
     L-->>C: "Proposta #2 aguardando aprovação"
+    C->>C: guarda de saída: a proposta citada foi mesmo registrada?
+    alt modelo alegou ou foi pedido, mas nada foi registrado
+        C->>L: correção explícita (1 nova tentativa)
+        L-->>C: chama a ferramenta ou resposta honesta "nenhuma proposta registrada"
+    end
     C-->>U: resposta + ações pendentes
     U->>GW: POST /acoes/2/aprovacao
     GW->>A: só o dono da conversa pode decidir
@@ -269,7 +274,17 @@ sequenceDiagram
 
 **Endpoints:** `POST /api/cursos/{id}/agente/mensagens` · `GET .../acoes` · `POST .../acoes/{acaoId}/aprovacao` · `POST .../acoes/{acaoId}/rejeicao` · `GET .../metas`. Tela: **Agentes IA** no menu da SPA.
 
-**Requisitos de máquina:** o modelo `qwen2.5:3b` precisa de cerca de 6 GB de memória no Docker. Com menos, ou enquanto o modelo baixa, o agente responde 503 e o resto da plataforma funciona normalmente. No Mac, o Docker não usa a GPU; para respostas em poucos segundos, use o Ollama do host (`OLLAMA_URL=http://host.docker.internal:11434` no `.env`). Modelos menores (1,5 B a 1,7 B) foram testados e inventam dados em vez de chamar as ferramentas.
+**Guarda de saída (alucinação de ação):** modelos locais às vezes respondem "proposta #N criada" sem chamar a ferramenta. As ferramentas contam se a proposta foi tentada e registrada; se o modelo alegou uma proposta que não existe, ou se o usuário pediu uma ação e a ferramenta não foi chamada, o Core manda uma correção e dá **uma** nova chance. Se falhar de novo, o usuário recebe "Ainda não registrei nenhuma proposta", nunca um número inventado. As ferramentas também aceitam aluno e missão pelo **nome** (só da turma/curso) e, ao recusar, listam as opções válidas para o modelo se corrigir.
+
+**Modelos medidos** (7 pedidos diretos de ação, 3 rodadas na mesma memória, Ollama do host em um Mac M-series):
+
+| Modelo | Propostas registradas | Tempo por resposta | Observação |
+|---|---|---|---|
+| `qwen3:8b` (`think=false`) | 21/21 | 5–10 s | Recomendado para a demonstração |
+| `qwen2.5:3b` (padrão do compose) | ~15/21 | 2–4 s | Leve; a guarda impede propostas falsas, mas às vezes pede para repetir |
+| `qwen2.5:1.5b`, `qwen3:1.7b` | — | — | Inventam dados em vez de chamar as ferramentas |
+
+**Requisitos de máquina:** o padrão do compose é `qwen2.5:3b`, que precisa de ~6 GB de memória no Docker (`qwen3:8b`, ~8 GB). Com menos, ou enquanto o modelo baixa, o agente responde 503 e o resto da plataforma funciona normalmente. No Mac, o Docker não usa a GPU; para respostas em poucos segundos use o Ollama do host no `.env`: `OLLAMA_URL=http://host.docker.internal:11434` e `OLLAMA_MODELO=qwen3:8b`. A memória da conversa guarda as últimas 6 mensagens (`AGENTE_MEMORIA_MENSAGENS`): mais histórico fez o modelo pequeno copiar respostas antigas em vez de chamar ferramentas.
 
 ### Nível 4 — Código: módulo de gamificação (hexagonal)
 

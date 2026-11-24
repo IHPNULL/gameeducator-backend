@@ -18,7 +18,7 @@ import org.springframework.ai.tool.annotation.ToolParam;
  * quem conversa: nenhuma ferramenta recebe "alunoId" do modelo, entao o LLM nao consegue ler dados de outra
  * pessoa (RNF03). Leitura roda direto; a unica acao (meta de estudo) so vira proposta pendente.
  */
-public class FerramentasDeOrientacao {
+public class FerramentasDeOrientacao implements FerramentasDoAgente {
 
     private final Long alunoId;
     private final Long cursoId;
@@ -26,6 +26,8 @@ public class FerramentasDeOrientacao {
     private final RecomendacaoService recomendacoes;
     private final AssistenteService assistente;
     private final AcoesDoAgenteService acoes;
+    private boolean propostaTentada;
+    private boolean propostaRegistrada;
 
     FerramentasDeOrientacao(Long alunoId, Long cursoId, GamificacaoApi gamificacao, RecomendacaoService recomendacoes,
                             AssistenteService assistente, AcoesDoAgenteService acoes) {
@@ -70,15 +72,28 @@ public class FerramentasDeOrientacao {
 
     @Tool(description = "PROPOE uma meta de estudo para o aluno concluir uma missao do curso dentro de um prazo. "
             + "Nao cria a meta: ela fica pendente ate o aluno aprovar no painel de acoes. "
-            + "Use somente ids de missao obtidos com recomendarMissoes.")
-    public String proporMetaDeEstudo(@ToolParam(description = "Id da missao") Long missaoId,
+            + "Informe a missao pelo id ou pelo titulo (ex.: \"Missao 2\" ou \"geometria\").")
+    public String proporMetaDeEstudo(@ToolParam(description = "Id ou titulo da missao") String missao,
                                      @ToolParam(description = "Prazo em dias a partir de hoje, de 1 a 90") int prazoEmDias,
                                      @ToolParam(description = "Objetivo curto da meta, em portugues") String objetivo) {
+        propostaTentada = true;
         try {
+            Long missaoId = acoes.resolverMissao(cursoId, missao);
             AcaoDoAgente acao = acoes.proporMetaDeEstudo(alunoId, cursoId, missaoId, prazoEmDias, objetivo);
+            propostaRegistrada = true;
             return "Proposta #" + acao.getId() + " registrada e AGUARDANDO APROVACAO do aluno: " + acao.getDescricao();
         } catch (RegraDeNegocioException e) {
             return "Nao foi possivel propor a meta: " + e.getMessage();
         }
+    }
+
+    @Override
+    public boolean propostaTentada() {
+        return propostaTentada;
+    }
+
+    @Override
+    public boolean propostaRegistrada() {
+        return propostaRegistrada;
     }
 }

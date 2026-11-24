@@ -34,6 +34,7 @@ import org.facens.grupo_6_gameeducator.service.agente.AgenteService;
 import org.facens.grupo_6_gameeducator.service.agente.AgenteService.RespostaDoAgente;
 import org.facens.grupo_6_gameeducator.service.agente.FerramentasDeAcompanhamento;
 import org.facens.grupo_6_gameeducator.service.agente.FerramentasDeOrientacao;
+import org.facens.grupo_6_gameeducator.service.dto.NovaMissaoRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -141,7 +142,7 @@ class AgentesDeIaComAutorizacaoTest extends CenarioBase {
     @Test
     @DisplayName("a meta de estudo proposta pelo agente fica PENDENTE e so vira meta quando o aluno aprova")
     void metaSoComAprovacao() {
-        roteiro(f -> ((FerramentasDeOrientacao) f).proporMetaDeEstudo(missao.getId(), 7, "terminar fracoes"));
+        roteiro(f -> ((FerramentasDeOrientacao) f).proporMetaDeEstudo(String.valueOf(missao.getId()), 7, "terminar fracoes"));
 
         RespostaDoAgente resposta = agenteService.conversar(aluno.getId(), curso.getId(), "crie uma meta");
 
@@ -169,9 +170,9 @@ class AgentesDeIaComAutorizacaoTest extends CenarioBase {
     void metaInvalidaVoltaComoTexto() {
         roteiro(f -> {
             FerramentasDeOrientacao ferramentas = (FerramentasDeOrientacao) f;
-            return ferramentas.proporMetaDeEstudo(missaoDeOutroCurso.getId(), 7, "x") + " / "
-                    + ferramentas.proporMetaDeEstudo(missao.getId(), 0, null) + " / "
-                    + ferramentas.proporMetaDeEstudo(missao.getId(), 91, null);
+            return ferramentas.proporMetaDeEstudo(String.valueOf(missaoDeOutroCurso.getId()), 7, "x") + " / "
+                    + ferramentas.proporMetaDeEstudo(String.valueOf(missao.getId()), 0, null) + " / "
+                    + ferramentas.proporMetaDeEstudo(String.valueOf(missao.getId()), 91, null);
         });
 
         RespostaDoAgente resposta = agenteService.conversar(aluno.getId(), curso.getId(), "meta");
@@ -179,6 +180,29 @@ class AgentesDeIaComAutorizacaoTest extends CenarioBase {
         assertTrue(resposta.resposta().startsWith("Nao foi possivel propor a meta: A missao"));
         assertTrue(resposta.resposta().contains("O prazo deve ficar entre 1 e 90 dias"));
         assertTrue(resposta.acoesPendentes().isEmpty());
+    }
+
+    @Test
+    @DisplayName("a missao da meta pode vir pelo titulo; nome ambiguo ou de fora do curso lista as missoes validas")
+    void missaoPeloTitulo() {
+        Missao geometria = missaoService.criar(professor.getId(), curso.getId(), new NovaMissaoRequest(
+                "Missao 2 - Geometria Espacial", "Volumes", missaoDeExemplo(30).desafios()));
+        roteiro(f -> {
+            FerramentasDeOrientacao ferramentas = (FerramentasDeOrientacao) f;
+            return ferramentas.proporMetaDeEstudo("fisica quantica", 7, "x") + " / "
+                    + ferramentas.proporMetaDeEstudo("fracoes ou geometria", 7, "x") + " / "
+                    + ferramentas.proporMetaDeEstudo(" ", 7, "x") + " / "
+                    + ferramentas.proporMetaDeEstudo("a missao de Geometria", 7, "x");
+        });
+
+        RespostaDoAgente resposta = agenteService.conversar(aluno.getId(), curso.getId(), "meta");
+
+        String texto = resposta.resposta();
+        assertTrue(texto.contains("Nenhuma missao corresponde a \"fisica quantica\". Missoes deste curso (id - titulo): "
+                + missao.getId() + " - Missao 1 - Fracoes; " + geometria.getId() + " - Missao 2 - Geometria Espacial"), texto);
+        assertTrue(texto.contains("Mais de uma missao corresponde a \"fracoes ou geometria\""), texto);
+        assertTrue(texto.contains("Informe a missao."), texto);
+        assertEquals(geometria.getId(), resposta.acoesPendentes().get(0).getMissaoId());
     }
 
     @Test
@@ -291,6 +315,86 @@ class AgentesDeIaComAutorizacaoTest extends CenarioBase {
         assertThrows(RegraDeNegocioException.class,
                 () -> acoesService.aprovar(professor.getId(), curso.getId(), proposta.getId()));
         assertTrue(lembretes().isEmpty());
+    }
+
+    // ---------------- guarda de saida: proposta inventada pelo modelo ----------------
+
+    @Test
+    @DisplayName("modelo diz 'proposta #N' sem chamar a ferramenta -> o Core corrige e o modelo propoe de verdade")
+    void propostaInventadaGanhaSegundaChance() {
+        List<String> mensagens = new java.util.ArrayList<>();
+        when(orquestrador.conduzir(any())).thenAnswer(inv -> {
+            PedidoAoAgente pedido = inv.getArgument(0);
+            mensagens.add(pedido.mensagem());
+            if (mensagens.size() == 1) {
+                return "A proposta #99 esta AGUARDANDO APROVACAO.";
+            }
+            return ((FerramentasDeAcompanhamento) pedido.ferramentas().get(0)).proporLembreteAoAluno("Carla", "Vamos!");
+        });
+
+        RespostaDoAgente resposta = agenteService.conversar(professor.getId(), curso.getId(), "como vai a Carla?");
+
+        assertEquals(2, mensagens.size());
+        assertTrue(mensagens.get(1).contains("proporLembreteAoAluno"));
+        assertTrue(resposta.resposta().startsWith("Proposta #"));
+        assertEquals(1, resposta.acoesPendentes().size());
+    }
+
+    @Test
+    @DisplayName("ferramenta recusou mas o modelo diz 'proposta #N' -> tambem ganha a correcao")
+    void recusaDisfarcadaDeProposta() {
+        List<String> mensagens = new java.util.ArrayList<>();
+        when(orquestrador.conduzir(any())).thenAnswer(inv -> {
+            PedidoAoAgente pedido = inv.getArgument(0);
+            mensagens.add(pedido.mensagem());
+            FerramentasDeOrientacao ferramentas = (FerramentasDeOrientacao) pedido.ferramentas().get(0);
+            if (mensagens.size() == 1) {
+                ferramentas.proporMetaDeEstudo("fisica quantica", 7, "x");
+                return "A proposta #42 esta AGUARDANDO APROVACAO.";
+            }
+            return ferramentas.proporMetaDeEstudo("fracoes", 7, "x");
+        });
+
+        RespostaDoAgente resposta = agenteService.conversar(aluno.getId(), curso.getId(), "proponha uma meta");
+
+        assertEquals(2, mensagens.size());
+        assertEquals(1, resposta.acoesPendentes().size());
+        assertTrue(resposta.resposta().startsWith("Proposta #" + resposta.acoesPendentes().get(0).getId()));
+    }
+
+    @Test
+    @DisplayName("pedido de meta sem chamada de ferramenta, duas vezes -> resposta honesta, nada inventado")
+    void propostaQueNuncaAconteceNaoChegaAoUsuario() {
+        List<String> mensagens = new java.util.ArrayList<>();
+        when(orquestrador.conduzir(any())).thenAnswer(inv -> {
+            mensagens.add(((PedidoAoAgente) inv.getArgument(0)).mensagem());
+            return "Claro, vou propor sua meta!";
+        });
+
+        RespostaDoAgente resposta = agenteService.conversar(aluno.getId(), curso.getId(), "Proponha uma meta de estudo");
+
+        assertEquals(2, mensagens.size());
+        assertTrue(mensagens.get(1).contains("proporMetaDeEstudo"));
+        assertTrue(resposta.resposta().startsWith("Ainda nao registrei nenhuma proposta"));
+        assertTrue(resposta.resposta().contains("Missao 1 em 7 dias"));
+        assertTrue(resposta.acoesPendentes().isEmpty());
+    }
+
+    @Test
+    @DisplayName("pergunta comum (sem pedido de acao) responde de primeira, sem correcao")
+    void perguntaComumNaoDisparaCorrecao() {
+        List<String> mensagens = new java.util.ArrayList<>();
+        when(orquestrador.conduzir(any())).thenAnswer(inv -> {
+            mensagens.add(((PedidoAoAgente) inv.getArgument(0)).mensagem());
+            return "Meta e um objetivo com prazo.";
+        });
+
+        RespostaDoAgente resposta = agenteService.conversar(aluno.getId(), curso.getId(), "O que é uma meta?");
+
+        assertEquals(1, mensagens.size());
+        assertEquals("Meta e um objetivo com prazo.", resposta.resposta());
+        assertTrue(agenteService.conversar(professor.getId(), curso.getId(), "Envie um lembrete") != null);
+        assertTrue(mensagens.get(2).contains("ATENCAO"));
     }
 
     // ---------------- quem pode conversar (RNF03) e degradacao ----------------

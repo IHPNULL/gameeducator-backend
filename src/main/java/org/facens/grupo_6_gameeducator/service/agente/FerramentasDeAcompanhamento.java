@@ -15,13 +15,15 @@ import org.springframework.ai.tool.annotation.ToolParam;
  * Ferramentas do agente de ACOMPANHAMENTO (professor responsavel pelo curso). Presas ao professor e ao curso
  * da requisicao (RNF03). Leitura da turma roda direto; o lembrete ao aluno so vira proposta pendente.
  */
-public class FerramentasDeAcompanhamento {
+public class FerramentasDeAcompanhamento implements FerramentasDoAgente {
 
     private final Long professorId;
     private final Long cursoId;
     private final JogoService jogo;
     private final GamificacaoApi gamificacao;
     private final AcoesDoAgenteService acoes;
+    private boolean propostaTentada;
+    private boolean propostaRegistrada;
 
     FerramentasDeAcompanhamento(Long professorId, Long cursoId, JogoService jogo, GamificacaoApi gamificacao,
                                 AcoesDoAgenteService acoes) {
@@ -52,9 +54,11 @@ public class FerramentasDeAcompanhamento {
             + "professor aprovar no painel de acoes.")
     public String proporLembreteAoAluno(@ToolParam(description = "Nome do aluno (ou o id dele)") String aluno,
                                         @ToolParam(description = "Texto do lembrete, curto e encorajador") String mensagem) {
+        propostaTentada = true;
         try {
             Long alunoId = resolverAluno(aluno);
             AcaoDoAgente acao = acoes.proporLembrete(professorId, cursoId, alunoId, mensagem);
+            propostaRegistrada = true;
             return "Proposta #" + acao.getId() + " registrada e AGUARDANDO APROVACAO do professor: " + acao.getDescricao();
         } catch (RegraDeNegocioException e) {
             return "Nao foi possivel propor o lembrete: " + e.getMessage();
@@ -90,5 +94,15 @@ public class FerramentasDeAcompanhamento {
             return "";
         }
         return Normalizer.normalize(texto, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT).strip();
+    }
+
+    @Override
+    public boolean propostaTentada() {
+        return propostaTentada;
+    }
+
+    @Override
+    public boolean propostaRegistrada() {
+        return propostaRegistrada;
     }
 }

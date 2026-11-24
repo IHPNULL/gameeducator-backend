@@ -1,10 +1,14 @@
 package org.facens.grupo_6_gameeducator.service.agente;
 
+import java.text.Normalizer;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.facens.grupo_6_gameeducator.domain.AcaoDoAgente;
 import org.facens.grupo_6_gameeducator.domain.MetaDeEstudo;
 import org.facens.grupo_6_gameeducator.domain.Missao;
@@ -68,7 +72,8 @@ public class AcoesDoAgenteService {
     public AcaoDoAgente proporMetaDeEstudo(Long alunoId, Long cursoId, Long missaoId, int prazoEmDias, String objetivo) {
         Missao missao = missoes.findById(missaoId)
                 .filter(m -> m.getCurso().getId().equals(cursoId))
-                .orElseThrow(() -> new RegraDeNegocioException("A missao " + missaoId + " nao existe neste curso"));
+                .orElseThrow(() -> new RegraDeNegocioException("A missao " + missaoId + " nao existe neste curso. "
+                        + missoesDoCurso(cursoId)));
         if (prazoEmDias < 1 || prazoEmDias > PRAZO_MAXIMO_DIAS) {
             throw new RegraDeNegocioException("O prazo deve ficar entre 1 e " + PRAZO_MAXIMO_DIAS + " dias");
         }
@@ -76,6 +81,52 @@ public class AcoesDoAgenteService {
         String texto = objetivo == null ? "" : objetivo.strip();
         return acoes.save(AcaoDoAgente.metaDeEstudo(alunoId, cursoId, missao.getId(), missao.getTitulo(), prazo, texto,
                 agora()));
+    }
+
+    /**
+     * Modelos pequenos confundem ids (passam o numero da proposta como missao); por isso a missao pode vir
+     * pelo id ou por parte do titulo ("geometria", "Missao 2"). A busca e so neste curso.
+     */
+    @Transactional(readOnly = true)
+    public Long resolverMissao(Long cursoId, String missao) {
+        List<Missao> doCurso = missoes.findByCursoIdOrderByIdAsc(cursoId);
+        String termo = normalizar(missao);
+        if (termo.isEmpty()) {
+            throw new RegraDeNegocioException("Informe a missao. " + descrever(doCurso));
+        }
+        if (termo.chars().allMatch(Character::isDigit)) {
+            Long id = Long.valueOf(termo);
+            return doCurso.stream().map(Missao::getId).filter(id::equals).findFirst()
+                    .orElseThrow(() -> new RegraDeNegocioException("A missao " + id + " nao existe neste curso. "
+                            + descrever(doCurso)));
+        }
+        List<String> palavras = Arrays.stream(termo.split("[^a-z0-9]+"))
+                .filter(p -> p.length() >= 4 && !p.equals("missao"))
+                .toList();
+        List<Missao> encontradas = doCurso.stream()
+                .filter(m -> normalizar(m.getTitulo()).contains(termo)
+                        || palavras.stream().anyMatch(normalizar(m.getTitulo())::contains))
+                .toList();
+        if (encontradas.size() != 1) {
+            throw new RegraDeNegocioException((encontradas.isEmpty()
+                    ? "Nenhuma missao corresponde a \"" + missao + "\". "
+                    : "Mais de uma missao corresponde a \"" + missao + "\". ") + descrever(doCurso));
+        }
+        return encontradas.get(0).getId();
+    }
+
+    private String missoesDoCurso(Long cursoId) {
+        return descrever(missoes.findByCursoIdOrderByIdAsc(cursoId));
+    }
+
+    private static String descrever(List<Missao> doCurso) {
+        return "Missoes deste curso (id - titulo): "
+                + doCurso.stream().map(m -> m.getId() + " - " + m.getTitulo()).collect(Collectors.joining("; "));
+    }
+
+    private static String normalizar(String texto) {
+        return Normalizer.normalize(texto == null ? "" : texto, Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT).strip();
     }
 
     /** Ferramenta do agente de acompanhamento: propoe ao professor um lembrete para um aluno da turma. */
