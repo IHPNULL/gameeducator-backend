@@ -45,14 +45,12 @@ Quem usa o GameEducator e com que sistemas externos ele conversa.
 flowchart TB
     aluno["<b>Aluno / Colaborador</b><br/>[Pessoa]<br/>Resolve missões, acompanha XP, medalhas,<br/>notas e recomendações; usa o assistente"]:::pessoa
     prof["<b>Professor / Gestor</b><br/>[Pessoa]<br/>Cria missões, lança notas,<br/>acompanha o desempenho da turma"]:::pessoa
-    ge["<b>GameEducator</b><br/>[Sistema de software]<br/>Plataforma de ensino gamificada com<br/>recomendação (ML), assistente (RAG) e agentes de IA"]:::sistema
+    ge["<b>GameEducator</b><br/>[Sistema de software]<br/>Plataforma de ensino gamificada com<br/>recomendação (ML), assistente (RAG) e agentes de IA<br/>(LLM local, sem serviço externo pago)"]:::sistema
     dev["<b>Dispositivos de laboratório</b><br/>[Sistema externo]<br/>Sensores e kits IoT"]:::externo
-    llm["<b>Provedor de LLM</b><br/>[Sistema externo, opcional]<br/>Ollama local"]:::externo
 
     aluno -->|"Usa [HTTPS]"| ge
     prof -->|"Usa [HTTPS]"| ge
     dev -.->|"Publica eventos de laboratório [MQTT]"| ge
-    ge -.->|"Gera respostas [HTTP]"| llm
 
     classDef pessoa fill:#08427b,stroke:#052e56,color:#fff
     classDef sistema fill:#1168bd,stroke:#0b4884,color:#fff
@@ -68,18 +66,17 @@ flowchart TB
     aluno["<b>Aluno / Colaborador</b><br/>[Pessoa]"]:::pessoa
     prof["<b>Professor / Gestor</b><br/>[Pessoa]"]:::pessoa
     dev["<b>Dispositivos de laboratório</b><br/>[Sistema externo]"]:::externo
-    llm["<b>Provedor de LLM</b><br/>[Sistema externo, opcional]"]:::externo
 
     subgraph ge["GameEducator [Sistema]"]
         gw["<b>API Gateway</b><br/>[Container: Java 21, Spring Cloud Gateway]<br/>Porta de entrada única, roteamento,<br/>X-Correlation-Id"]:::container
         spa["<b>SPA</b><br/>[Container: Vue 3 + Vuetify / Nginx]<br/>Interface do aluno e do professor"]:::container
-        core["<b>Core</b><br/>[Container: Java 21, Spring Boot 4]<br/>Monólito modular: missões, jogo, gamificação,<br/>notas, fórum, IoT, eventos (outbox)"]:::container
+        core["<b>Core</b><br/>[Container: Java 21, Spring Boot 4]<br/>Monólito modular: missões, jogo, gamificação,<br/>notas, fórum, IoT, eventos (outbox),<br/>agentes de IA com Spring AI (RF04)"]:::container
         ia["<b>Serviço de IA</b><br/>[Container: Python 3.12, FastAPI]<br/>Recomendação + assistente RAG, stateless"]:::container
         db[("<b>Banco de dados</b><br/>[Container: PostgreSQL 16]<br/>Dados de negócio, outbox, eventos IoT")]:::container
         mq[["<b>Message broker</b><br/>[Container: RabbitMQ 4.1 + MQTT]<br/>Exchange gameeducator.eventos, filas quorum, DLQs"]]:::container
         notif["<b>Serviço de notificação</b><br/>[Container: Python]<br/>Consumidor idempotente de eventos"]:::container
         obs["<b>Observabilidade</b><br/>[Container: Prometheus + Grafana]<br/>Coleta métricas de todos os containers<br/>[HTTP /metrics], painéis e alertas"]:::container
-        agente["<b>Agentes de IA</b><br/>[Componente do Core: Spring AI]<br/>Orientação e acompanhamento,<br/>com autorização do usuário (RF04)"]:::planejado
+        llm["<b>LLM local</b><br/>[Container: Ollama, qwen2.5:3b]<br/>Tool calling dos agentes"]:::container
         treino["<b>Worker de treinamento</b><br/>[Container: Python]<br/>Classificação de competência (RF02),<br/>status do treino (RF05)"]:::planejado
     end
 
@@ -89,13 +86,12 @@ flowchart TB
     gw -->|"/ia/saude [HTTP]"| ia
     core -->|"Lê e grava [JDBC]"| db
     core -->|"Recomendar, perguntar [REST/JSON,<br/>timeout + disjuntor]"| ia
-    ia -.->|"Gera texto [HTTP]"| llm
+    core -->|"Agentes: chat + tool calling<br/>[REST/JSON, Spring AI]"| llm
+    ia -.->|"Geração opcional [HTTP]"| llm
     core -.->|"Publica eventos via relay do outbox [AMQP]"| mq
     mq -.->|"notificacao.eventos [AMQP]"| notif
     dev -.->|"gameeducator.lab.* [MQTT]"| mq
     mq -.->|"core.iot.eventos [AMQP]"| core
-    core --- agente
-    agente -.->|"Usa ferramentas do Core<br/>e o RAG [REST]"| ia
     core -.->|"Pedido de treinamento [AMQP]"| mq
     mq -.->|"ia.treinamento [AMQP]"| treino
 
@@ -116,6 +112,7 @@ flowchart TB
 | Message broker | `gameeducator-backend/labs/infra` | RabbitMQ 4.1 (AMQP + MQTT) | Eventos assíncronos e IoT |
 | Serviço de notificação | `gameeducator-backend/labs/notificacao-consumidor` | Python, pika | Consome eventos de domínio |
 | Observabilidade | `gameeducator-backend/labs/infra` | Prometheus, Grafana | Métricas, painéis e alertas |
+| LLM local | imagem `ollama/ollama` (modelo baixado pelo `ollama-modelo`) | Ollama, qwen2.5:3b | Modelo dos agentes de IA (RF04) |
 
 **Comunicação entre containers**
 
@@ -124,6 +121,8 @@ flowchart TB
 | Navegador → Gateway → SPA / Core | Síncrono (REST) | O usuário espera a resposta na tela |
 | Core → Serviço de IA (recomendar, perguntar) | Síncrono (REST) com timeout de 2 s, disjuntor e fallback | A resposta é necessária na hora; a IA fora não pode travar o Core (ADR-B1-003) |
 | Core → RabbitMQ → Notificação | Assíncrono (AMQP via outbox) | Notificar é eventual; a falha do consumidor não pode desfazer a conclusão da missão (ADR-B1-004) |
+| Core → Ollama (agentes, RF04) | Síncrono (REST) com timeout de 180 s só na rota do agente | O usuário está esperando a resposta do chat; com o LLM fora, o agente responde 503 e o resto segue |
+| Lembrete aprovado → RabbitMQ → Notificação (RF04) | Assíncrono (AMQP via outbox, routing key `agente.#`) | A aprovação conclui na hora; a entrega ao aluno é eventual e sobrevive ao consumidor fora |
 | Dispositivos → RabbitMQ → Core | Assíncrono (MQTT → AMQP) | Dispositivos com conectividade intermitente; o broker absorve picos (ADR-B1-005) |
 | Core → RabbitMQ → Worker de treinamento 🟨 | Assíncrono (AMQP) | Treinar é demorado; o pedido fica na fila enquanto o ML estiver fora (RNF02) |
 
@@ -139,9 +138,10 @@ flowchart TB
     ia["<b>Serviço de IA</b><br/>[Container]"]:::container
     db[("<b>PostgreSQL</b><br/>[Container]")]:::container
     mq[["<b>RabbitMQ</b><br/>[Container]"]]:::container
+    llm["<b>LLM local (Ollama)</b><br/>[Container]"]:::container
 
     subgraph core["Core [Container: Spring Boot 4]"]
-        web["<b>Controllers REST</b><br/>[web]<br/>Missao, Jogo, Nota, Forum, Turma,<br/>Ia, Laboratorio + RestExceptionHandler"]:::componente
+        web["<b>Controllers REST</b><br/>[web]<br/>Missao, Jogo, Nota, Forum, Turma,<br/>Ia, Agente, Laboratorio + RestExceptionHandler"]:::componente
         svc["<b>Serviços de aplicação</b><br/>[service]<br/>MissaoService, JogoService, NotaService,<br/>ForumService: regras e autorização"]:::componente
         iasvc["<b>Serviços de IA do Core</b><br/>[service]<br/>RecomendacaoService, AssistenteService"]:::componente
         gam["<b>Gamificação</b><br/>[módulo hexagonal]<br/>GamificacaoApi: XP, medalhas, ranking"]:::componente
@@ -149,7 +149,9 @@ flowchart TB
         evt["<b>Eventos</b><br/>[módulo eventos]<br/>EmissorViaOutbox → OutboxEvento<br/>RelayDoOutbox → PublicadorRabbitMq"]:::componente
         iot["<b>IoT</b><br/>[módulo iot, anticorrupção]<br/>ConsumidorIotRabbit → TradutorDeEventoIot<br/>→ RegistroDeEventosIot"]:::componente
         repo["<b>Repositórios</b><br/>[repository]<br/>Spring Data JPA"]:::componente
-        agente["<b>Agente de orientação</b><br/>[Spring AI]<br/>Ferramentas com autorização (RF04)"]:::planejado
+        agente["<b>Agentes de IA</b><br/>[service.agente]<br/>AgenteService escolhe o agente pelo papel;<br/>FerramentasDeOrientacao / DeAcompanhamento<br/>(@Tool, presas ao usuário e ao curso)"]:::componente
+        acoes["<b>Autorização das ações</b><br/>[service.agente]<br/>AcoesDoAgenteService: proposta PENDENTE<br/>→ aprovar (executa) | rejeitar"]:::componente
+        orq["<b>Orquestrador do agente</b><br/>[módulo ia]<br/>OrquestradorDeAgente → AgenteSpringAi<br/>(ChatClient + memória + tool calling)"]:::componente
     end
 
     gw -->|"REST/JSON"| web
@@ -162,8 +164,12 @@ flowchart TB
     repo -->|"JDBC"| db
     evt -.->|"AMQP"| mq
     mq -.->|"AMQP"| iot
-    web -.-> agente
-    agente -.-> svc & iaport
+    web --> agente & acoes
+    agente -->|"ferramentas de leitura"| svc & iasvc & gam
+    agente -->|"ferramentas de ação só propõem"| acoes
+    agente --> orq
+    orq -->|"REST, Spring AI"| llm
+    acoes -->|"aprovado: MetaDeEstudo ou<br/>LembreteAoAlunoEnviado"| evt
 
     classDef container fill:#1168bd,stroke:#0b4884,color:#fff
     classDef componente fill:#85bbf0,stroke:#5d82a8,color:#000
@@ -209,14 +215,14 @@ flowchart LR
     nav["<b>Navegador</b>"]:::pessoa
     subgraph gw["API Gateway [Container]"]
         corr["<b>CorrelacaoFilter</b><br/>[GlobalFilter]<br/>Garante X-Correlation-Id"]:::componente
-        rotas["<b>Rotas</b><br/>[application.yml]<br/>core-api · core-openapi · ia-saude · frontend"]:::componente
+        rotas["<b>Rotas</b><br/>[application.yml]<br/>core-agente (timeout 180 s) · core-api · core-openapi<br/>· ia-saude · frontend · PreserveHostHeader"]:::componente
         act["<b>Actuator</b><br/>/actuator/gateway/routes · health · prometheus"]:::componente
     end
     core["<b>Core</b>"]:::container
     spa["<b>SPA</b>"]:::container
     ia["<b>Serviço de IA</b>"]:::container
     nav --> corr --> rotas
-    rotas -->|"/api/**, /v3/api-docs, /swagger-ui"| core
+    rotas -->|"/api/**, /v3/api-docs, /swagger-ui<br/>(/api/cursos/*/agente/** com timeout próprio)"| core
     rotas -->|"/ia/saude"| ia
     rotas -->|"/** (menor prioridade)"| spa
 
@@ -225,6 +231,60 @@ flowchart LR
     classDef componente fill:#85bbf0,stroke:#5d82a8,color:#000
     style gw fill:none,stroke:#666,stroke-dasharray:5 5
 ```
+
+### Fluxo do RF04 — agentes de IA com autorização do usuário
+
+O agente lê dados com ferramentas presas ao usuário e ao curso da requisição (o modelo escolhe *qual* ferramenta, nunca *sobre quem*: RNF03) e **só propõe** ações. Nada muda sem a aprovação do próprio usuário.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Aluno / Professor
+    participant GW as API Gateway
+    participant C as Core: AgenteService
+    participant L as Ollama (Spring AI)
+    participant A as AcoesDoAgenteService
+    participant MQ as RabbitMQ → Notificação
+
+    U->>GW: POST /api/cursos/1/agente/mensagens
+    GW->>C: rota core-agente (timeout 180 s)
+    C->>C: papel do usuário → agente de orientação ou de acompanhamento
+    C->>L: instruções + histórico + ferramentas
+    L-->>C: chamar consultarDesempenhoDaTurma()
+    C-->>L: dados só da turma deste professor
+    L-->>C: chamar proporLembreteAoAluno("Eduardo", "...")
+    C->>A: grava AcaoDoAgente PENDENTE
+    L-->>C: "Proposta #2 aguardando aprovação"
+    C->>C: guarda de saída: a proposta citada foi mesmo registrada?
+    alt modelo alegou ou foi pedido, mas nada foi registrado
+        C->>L: correção explícita (1 nova tentativa)
+        L-->>C: chama a ferramenta ou resposta honesta "nenhuma proposta registrada"
+    end
+    C-->>U: resposta + ações pendentes
+    U->>GW: POST /acoes/2/aprovacao
+    GW->>A: só o dono da conversa pode decidir
+    A->>MQ: LembreteAoAlunoEnviado (outbox, agente.#)
+    A-->>U: status EXECUTADA
+```
+
+| Agente | Quem usa | Ferramentas de leitura | Ação (exige aprovação) |
+|---|---|---|---|
+| Orientação | Aluno matriculado | `consultarMeuProgresso`, `recomendarMissoes`, `consultarMaterialDoCurso` (RAG) | `proporMetaDeEstudo` → `MetaDeEstudo` |
+| Acompanhamento | Professor responsável pelo curso | `consultarDesempenhoDaTurma`, `consultarRankingDaTurma` | `proporLembreteAoAluno` → evento para a notificação |
+
+**Endpoints:** `POST /api/cursos/{id}/agente/mensagens` · `GET .../acoes` · `POST .../acoes/{acaoId}/aprovacao` · `POST .../acoes/{acaoId}/rejeicao` · `GET .../metas`. Tela: **Agentes IA** no menu da SPA.
+
+**Guarda de saída (alucinação de ação):** modelos locais às vezes respondem "proposta #N criada" sem chamar a ferramenta. As ferramentas contam se a proposta foi tentada e registrada; se o modelo alegou uma proposta que não existe, ou se o usuário pediu uma ação e a ferramenta não foi chamada, o Core manda uma correção e dá **uma** nova chance. Se falhar de novo, o usuário recebe "Ainda não registrei nenhuma proposta", nunca um número inventado. As ferramentas também aceitam aluno e missão pelo **nome** (só da turma/curso) e, ao recusar, listam as opções válidas para o modelo se corrigir.
+
+**Modelos medidos** (7 pedidos diretos de ação, 3 rodadas na mesma memória, Ollama do host em um Mac M-series):
+
+| Modelo | Propostas registradas | Tempo por resposta | Observação |
+|---|---|---|---|
+| `qwen3:8b` (`think=false`) | 21/21 | 5–10 s | Recomendado para a demonstração |
+| `qwen2.5:3b` (padrão do compose) | ~15/21 | 2–4 s | Leve; a guarda impede propostas falsas, mas às vezes pede para repetir |
+| `qwen2.5:1.5b`, `qwen3:1.7b` | — | — | Inventam dados em vez de chamar as ferramentas |
+
+**Requisitos de máquina:** o padrão do compose é `qwen2.5:3b`, que precisa de ~6 GB de memória no Docker (`qwen3:8b`, ~8 GB). Com menos, ou enquanto o modelo baixa, o agente responde 503 e o resto da plataforma funciona normalmente. No Mac, o Docker não usa a GPU; para respostas em poucos segundos use o Ollama do host no `.env`: `OLLAMA_URL=http://host.docker.internal:11434` e `OLLAMA_MODELO=qwen3:8b`. A memória da conversa guarda as últimas 6 mensagens (`AGENTE_MEMORIA_MENSAGENS`): mais histórico fez o modelo pequeno copiar respostas antigas em vez de chamar ferramentas.
 
 ### Nível 4 — Código: módulo de gamificação (hexagonal)
 
@@ -283,7 +343,7 @@ classDiagram
 
 ### Implantação — limites do `docker compose`
 
-Um único host Docker, uma rede interna. Só o gateway e as ferramentas de operação publicam portas; Core, IA, banco e notificação ficam inacessíveis de fora.
+Um único host Docker, uma rede interna. Só o gateway e as ferramentas de operação publicam portas; Core, IA, Ollama, banco e notificação ficam inacessíveis de fora.
 
 ```mermaid
 flowchart TB
@@ -302,11 +362,12 @@ flowchart TB
             db[("db :5432")]:::container
             mq[["rabbitmq :5672"]]:::container
             notif["notificacao :8085"]:::container
+            llm["ollama :11434<br/>(modelo no volume ollama-data)"]:::container
         end
     end
     nav --> gw & rmqui & graf
     gw --> spa & core & ia
-    core --> db & mq & ia
+    core --> db & mq & ia & llm
     mq --> notif
 
     classDef pessoa fill:#08427b,stroke:#052e56,color:#fff

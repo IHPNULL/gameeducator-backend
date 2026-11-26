@@ -40,6 +40,7 @@
   ],
   "bindings": [
     { "source": "gameeducator.eventos", "vhost": "/", "destination": "notificacao.eventos", "destination_type": "queue", "routing_key": "gamificacao.#", "arguments": {} },
+    { "source": "gameeducator.eventos", "vhost": "/", "destination": "notificacao.eventos", "destination_type": "queue", "routing_key": "agente.#", "arguments": {} },
     { "source": "gameeducator.eventos", "vhost": "/", "destination": "analytics.eventos", "destination_type": "queue", "routing_key": "#", "arguments": {} },
     { "source": "amq.topic", "vhost": "/", "destination": "core.iot.eventos", "destination_type": "queue", "routing_key": "gameeducator.lab.*.dispositivo.*.evento", "arguments": {} },
     { "source": "gameeducator.dlx", "vhost": "/", "destination": "notificacao.eventos.dlq", "destination_type": "queue", "routing_key": "notificacao.dlq", "arguments": {} },

@@ -18,6 +18,14 @@ spring:
             connect-timeout: 2000
             response-timeout: 30s
           routes:
+            # Agentes de IA (RF04): o LLM pode levar dezenas de segundos na CPU, entao timeout maior so aqui
+            - id: core-agente
+              uri: ${CORE_URL:http://localhost:8081}
+              order: -1
+              predicates:
+                - Path=/api/cursos/*/agente/**
+              metadata:
+                response-timeout: 180000
             # API de negocio (Core Spring Boot)
             - id: core-api
               uri: ${CORE_URL:http://localhost:8081}
