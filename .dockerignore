@@ -3,3 +3,6 @@
 *.iml
 target/
 jenkins/jenkins_home/
+gateway/
+labs/
+docs/

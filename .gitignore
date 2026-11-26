@@ -24,3 +24,7 @@ HELP.md
 jenkins/jenkins_home/
 jenkins/.env
 docker/.env
+
+# compose da raiz: contextos locais de build (ver .env.example)
+/.env
+gateway/target/
