@@ -100,9 +100,12 @@ public class AgenteService {
         }
     }
 
-    /** Verbos de pedido de acao ("proponha", "crie", "envie"...). "o que e uma meta?" nao conta. */
+    /**
+     * Verbos de pedido de acao ("proponha", "crie", "envie"...). "o que e uma meta?" nao conta, e "sugira o que
+     * estudar" tambem nao: sugestao e conselho, e trocar um bom conselho pela correcao seria pior que nada.
+     */
     private static final Pattern PEDE_ACAO = Pattern.compile(
-            "\\b(propo\\w*|crie|criar|cria|envie|enviar|envia|mande|mandar|manda|sugira|sugerir|marque|marcar"
+            "\\b(propo\\w*|crie|criar|cria|envie|enviar|envia|mande|mandar|manda|marque|marcar"
                     + "|quero uma meta|pode propor)\\b", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     /** Frases com que o modelo afirma ter registrado algo. */
     private static final Pattern ALEGA_PROPOSTA = Pattern.compile(
