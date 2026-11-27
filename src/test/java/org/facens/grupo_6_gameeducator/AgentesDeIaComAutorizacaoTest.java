@@ -40,6 +40,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * SCENARIOS RF04 (AF): agentes de IA coordenam orientacao e acompanhamento COM AUTORIZACAO DO USUARIO.
@@ -317,7 +318,52 @@ class AgentesDeIaComAutorizacaoTest extends CenarioBase {
         assertTrue(lembretes().isEmpty());
     }
 
+    @Test
+    @DisplayName("se o professor deixou de ser o responsavel pelo curso, a aprovacao do lembrete e recusada")
+    void lembreteDeProfessorQueSaiu() {
+        AcaoDoAgente proposta = acoesService.proporLembrete(professor.getId(), curso.getId(), colega.getId(), "oi");
+        ReflectionTestUtils.setField(curso, "professor", umProfessor("Beto"));
+
+        assertThrows(AcessoNegadoException.class,
+                () -> acoesService.aprovar(professor.getId(), curso.getId(), proposta.getId()));
+        assertTrue(lembretes().isEmpty());
+    }
+
+    @Test
+    @DisplayName("se o aluno saiu da turma ou a missao saiu do curso, a aprovacao da meta e recusada")
+    void metaRevalidadaNaAprovacao() {
+        AcaoDoAgente doColega = acoesService.proporMetaDeEstudo(colega.getId(), curso.getId(), missao.getId(), 5, "x");
+        AcaoDoAgente doAluno = acoesService.proporMetaDeEstudo(aluno.getId(), curso.getId(), missao.getId(), 5, "x");
+        matriculaRepository.findByCursoId(curso.getId()).stream()
+                .filter(m -> m.getAluno().getId().equals(colega.getId()))
+                .forEach(matriculaRepository::delete);
+
+        assertThrows(RegraDeNegocioException.class,
+                () -> acoesService.aprovar(colega.getId(), curso.getId(), doColega.getId()));
+
+        ReflectionTestUtils.setField(missao, "curso", missaoDeOutroCurso.getCurso());
+        RegraDeNegocioException erro = assertThrows(RegraDeNegocioException.class,
+                () -> acoesService.aprovar(aluno.getId(), curso.getId(), doAluno.getId()));
+        assertTrue(erro.getMessage().contains("nao existe mais neste curso"));
+        assertTrue(metaRepository.findAll().isEmpty());
+    }
+
     // ---------------- guarda de saida: proposta inventada pelo modelo ----------------
+
+    @Test
+    @DisplayName("'sugira o que estudar' e pedido de conselho: a resposta do modelo chega sem correcao")
+    void sugestaoNaoEPedidoDeAcao() {
+        List<String> mensagens = new java.util.ArrayList<>();
+        when(orquestrador.conduzir(any())).thenAnswer(inv -> {
+            mensagens.add(((PedidoAoAgente) inv.getArgument(0)).mensagem());
+            return "Comece pela Missao 1 - Fracoes.";
+        });
+
+        RespostaDoAgente resposta = agenteService.conversar(aluno.getId(), curso.getId(), "Sugira o que estudar hoje");
+
+        assertEquals(1, mensagens.size());
+        assertEquals("Comece pela Missao 1 - Fracoes.", resposta.resposta());
+    }
 
     @Test
     @DisplayName("modelo diz 'proposta #N' sem chamar a ferramenta -> o Core corrige e o modelo propoe de verdade")

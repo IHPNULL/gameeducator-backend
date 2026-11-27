@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.facens.grupo_6_gameeducator.domain.AcaoDoAgente;
+import org.facens.grupo_6_gameeducator.domain.Curso;
 import org.facens.grupo_6_gameeducator.domain.MetaDeEstudo;
 import org.facens.grupo_6_gameeducator.domain.Missao;
 import org.facens.grupo_6_gameeducator.domain.StatusAcaoDoAgente;
@@ -21,6 +22,7 @@ import org.facens.grupo_6_gameeducator.exception.AcessoNegadoException;
 import org.facens.grupo_6_gameeducator.exception.RecursoNaoEncontradoException;
 import org.facens.grupo_6_gameeducator.exception.RegraDeNegocioException;
 import org.facens.grupo_6_gameeducator.repository.AcaoDoAgenteRepository;
+import org.facens.grupo_6_gameeducator.repository.CursoRepository;
 import org.facens.grupo_6_gameeducator.repository.MatriculaRepository;
 import org.facens.grupo_6_gameeducator.repository.MetaDeEstudoRepository;
 import org.facens.grupo_6_gameeducator.repository.MissaoRepository;
@@ -46,23 +48,26 @@ public class AcoesDoAgenteService {
     private final MissaoRepository missoes;
     private final MatriculaRepository matriculas;
     private final UsuarioRepository usuarios;
+    private final CursoRepository cursos;
     private final EmissorDeEventos eventos;
     private final Clock relogio;
 
     @Autowired
     public AcoesDoAgenteService(AcaoDoAgenteRepository acoes, MetaDeEstudoRepository metas, MissaoRepository missoes,
-                                MatriculaRepository matriculas, UsuarioRepository usuarios, EmissorDeEventos eventos) {
-        this(acoes, metas, missoes, matriculas, usuarios, eventos, Clock.systemDefaultZone());
+                                MatriculaRepository matriculas, UsuarioRepository usuarios, CursoRepository cursos,
+                                EmissorDeEventos eventos) {
+        this(acoes, metas, missoes, matriculas, usuarios, cursos, eventos, Clock.systemDefaultZone());
     }
 
     AcoesDoAgenteService(AcaoDoAgenteRepository acoes, MetaDeEstudoRepository metas, MissaoRepository missoes,
-                         MatriculaRepository matriculas, UsuarioRepository usuarios, EmissorDeEventos eventos,
-                         Clock relogio) {
+                         MatriculaRepository matriculas, UsuarioRepository usuarios, CursoRepository cursos,
+                         EmissorDeEventos eventos, Clock relogio) {
         this.acoes = acoes;
         this.metas = metas;
         this.missoes = missoes;
         this.matriculas = matriculas;
         this.usuarios = usuarios;
+        this.cursos = cursos;
         this.eventos = eventos;
         this.relogio = relogio;
     }
@@ -158,8 +163,17 @@ public class AcoesDoAgenteService {
         AcaoDoAgente acao = paraDecidir(usuarioId, cursoId, acaoId);
         Instant agora = agora();
         if (acao.getTipo() == TipoAcaoDoAgente.META_DE_ESTUDO) {
+            // O mundo pode ter mudado entre propor e aprovar: o aluno saiu do curso ou a missao foi removida.
+            exigirMatricula(cursoId, usuarioId);
+            boolean missaoNoCurso = missoes.findById(acao.getMissaoId())
+                    .filter(m -> m.getCurso().getId().equals(cursoId))
+                    .isPresent();
+            if (!missaoNoCurso) {
+                throw new RegraDeNegocioException("A missao " + acao.getMissaoId() + " nao existe mais neste curso");
+            }
             metas.save(new MetaDeEstudo(acao, agora));
         } else {
+            exigirResponsavel(usuarioId, cursoId);
             exigirMatricula(cursoId, acao.getAlunoAlvoId());
             eventos.emitir(new LembreteAoAlunoEnviado(UUID.randomUUID().toString(), acao.getAlunoAlvoId(), cursoId,
                     usuarioId, acao.getMensagem(), acao.getId(), agora));
@@ -181,7 +195,7 @@ public class AcoesDoAgenteService {
     }
 
     private AcaoDoAgente paraDecidir(Long usuarioId, Long cursoId, Long acaoId) {
-        AcaoDoAgente acao = acoes.findById(acaoId)
+        AcaoDoAgente acao = acoes.travarParaDecidir(acaoId)
                 .filter(a -> a.getCursoId().equals(cursoId))
                 .orElseThrow(() -> RecursoNaoEncontradoException.de("Acao do agente", acaoId));
         if (!acao.getSolicitanteId().equals(usuarioId)) {
@@ -191,6 +205,14 @@ public class AcoesDoAgenteService {
             throw new RegraDeNegocioException("A acao " + acaoId + " ja foi decidida (" + acao.getStatus() + ")");
         }
         return acao;
+    }
+
+    private void exigirResponsavel(Long professorId, Long cursoId) {
+        Curso curso = cursos.findById(cursoId).orElseThrow(() -> RecursoNaoEncontradoException.de("Curso", cursoId));
+        Usuario professor = usuarios.findById(professorId).orElse(null);
+        if (!curso.ehResponsavel(professor)) {
+            throw new AcessoNegadoException("O usuario " + professorId + " nao e mais o responsavel pelo curso " + cursoId);
+        }
     }
 
     private void exigirMatricula(Long cursoId, Long alunoId) {
